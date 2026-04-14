@@ -8,8 +8,6 @@ class Settings(BaseSettings):
     # AI providers
     anthropic_api_key: str = Field(default="", alias="ANTHROPIC_API_KEY")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
-    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
-
     # Gmail
     gmail_credentials_path: str = Field(default="backend/credentials.json", alias="GMAIL_CREDENTIALS_PATH")
     gmail_token_path: str = Field(default="backend/token.json", alias="GMAIL_TOKEN_PATH")
