@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Runtime dirs (Railway mounts /data as a persistent volume)
+# Runtime dirs (Fly.io mounts /data as a persistent volume)
 RUN mkdir -p backend/resumes backend/storage logs
 
 ENV PYTHONUNBUFFERED=1

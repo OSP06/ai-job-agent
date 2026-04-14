@@ -12,8 +12,7 @@
 
   "host_permissions": [
     "http://localhost:8000/*",
-    "https://*.railway.app/*",
-    "https://*.up.railway.app/*",
+    "https://*.fly.dev/*",
     "<all_urls>"
   ],
 
