@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from backend.agents.followup_scheduler import start_scheduler, stop_scheduler
 from backend.agents.job_parser import parse_job
 from backend.agents.outreach_generator import generate_followup, generate_outreach
-from backend.agents.recruiter_finder import find_recruiter
+from backend.agents.recruiter_finder import find_contacts
 from backend.agents.resume_matcher import match_resume
 from backend.config import settings
 from backend.models.job_model import JobInput, ProcessJobResponse
@@ -112,10 +112,13 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
     score = resume_match.score
     outreach_msg, skip_reason = generate_outreach(job, resume_match)
 
-    # Step 4 — Recruiter lookup (optional)
-    recruiter: dict | None = None
+    # Step 4 — Contact discovery (Hunter.io: LinkedIn name + HR dept + management)
+    contacts: list[dict] = []
     if job.company_domain:
-        recruiter = await find_recruiter(job.company_domain)
+        contacts = await find_contacts(
+            company_domain=job.company_domain,
+            linkedin_name=job_input.linkedin_recruiter_name,
+        )
 
     # Step 5 — Store application
     app_record = create_application(
@@ -133,21 +136,23 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         status="captured",
     )
 
-    # Step 6 — Store contact if found
-    if recruiter:
+    # Step 6 — Store all contacts found
+    for c in contacts:
         create_contact(
             db=db,
             application_id=app_record.id,
-            name=recruiter.get("name"),
-            email=recruiter.get("email"),
-            title=recruiter.get("title"),
+            name=c.get("name"),
+            email=c.get("email"),
+            title=c.get("title"),
+            linkedin_url=c.get("linkedin_url"),
         )
 
-    # Step 7 — Create outreach record + Gmail draft (only if above threshold)
+    # Step 7 — Create outreach record + Gmail draft to best verified contact
     gmail_draft_id: str | None = None
+    best_contact = contacts[0] if contacts else None
     if outreach_msg:
-        contact_email = recruiter.get("email") if recruiter else None
-        contact_name = recruiter.get("name") if recruiter else None
+        contact_email = best_contact.get("email") if best_contact else None
+        contact_name  = best_contact.get("name")  if best_contact else None
 
         if contact_email:
             gmail_draft_id = create_gmail_draft(
@@ -191,6 +196,12 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         all_resume_scores=resume_match.all_scores,
         matched_skills=resume_match.matched_skills,
         missing_skills=resume_match.missing_skills,
+        contacts_found=[
+            {"name": c.get("name"), "email": c.get("email"),
+             "title": c.get("title"), "verified": c.get("verified", False),
+             "source": c.get("source"), "linkedin_url": c.get("linkedin_url")}
+            for c in contacts
+        ],
         outreach_generated=outreach_msg is not None,
         outreach_skipped_reason=skip_reason,
         gmail_draft_id=gmail_draft_id,

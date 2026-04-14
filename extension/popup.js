@@ -26,6 +26,8 @@ const resAppLink      = document.getElementById("resAppLink");
 const scoresDivider   = document.getElementById("scoresDivider");
 const scoresSection   = document.getElementById("scoresSection");
 const scoresBars      = document.getElementById("scoresBars");
+const contactRow      = document.getElementById("contactRow");
+const resContact      = document.getElementById("resContact");
 const backendUrlInput = document.getElementById("backendUrlInput");
 const saveUrlBtn      = document.getElementById("saveUrlBtn");
 const skillsDivider   = document.getElementById("skillsDivider");
@@ -182,6 +184,21 @@ function displayResult(result) {
   if (result.job_title) jobTitle.textContent  = result.job_title;
   if (result.company)   jobCompany.textContent = result.company;
 
+  // Best contact found
+  const contacts = result.contacts_found || [];
+  if (contacts.length) {
+    const best = contacts[0];
+    const verified = best.verified ? " ✓" : "";
+    const label = [best.name, best.title].filter(Boolean).join(" · ");
+    resContact.textContent = (label || best.email || "—") + verified;
+    resContact.style.color = best.verified ? "#4caf50" : "#aaa";
+    if (best.linkedin_url) {
+      resContact.classList.add("link");
+      resContact.onclick = () => chrome.tabs.create({ url: best.linkedin_url });
+    }
+    contactRow.style.display = "";
+  }
+
   // Matched / missing skill pills
   const matched = result.matched_skills || [];
   const missing = result.missing_skills || [];
@@ -273,4 +290,9 @@ function resetResult() {
   });
   resAppLink.textContent = "—";
   resAppLink.onclick     = null;
+  contactRow.style.display = "none";
+  resContact.textContent   = "—";
+  resContact.style.color   = "";
+  resContact.classList.remove("link");
+  resContact.onclick = null;
 }

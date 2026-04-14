@@ -9,6 +9,9 @@ class JobInput(BaseModel):
     url: str
     raw_text: str
     page_title: Optional[str] = None
+    # Extracted by content.js from LinkedIn / job page
+    linkedin_recruiter_name: Optional[str] = None
+    linkedin_recruiter_url: Optional[str] = None
 
 
 # ─── Parsed Job (from OpenAI) ─────────────────────────────────────────────────
@@ -142,6 +145,7 @@ class ProcessJobResponse(BaseModel):
     all_resume_scores: dict[str, float] = Field(default_factory=dict)
     matched_skills: list[str] = Field(default_factory=list)
     missing_skills: list[str] = Field(default_factory=list)
+    contacts_found: list[dict] = Field(default_factory=list)
     outreach_generated: bool
     outreach_skipped_reason: Optional[str] = None
     gmail_draft_id: Optional[str] = None

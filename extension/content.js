@@ -10,7 +10,7 @@
  *   3. Last resort: full body text (stripped of nav/footer noise)
  */
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "scrape_job") {
     try {
       const result = extractJobContent();
@@ -68,11 +68,50 @@ function extractJobContent() {
     rawText = extractFromBody();
   }
 
+  const recruiter = extractRecruiter();
+
   return {
     url,
     page_title: pageTitle,
-    raw_text: rawText.substring(0, 8000), // cap at 8k chars for API
+    raw_text: rawText.substring(0, 8000),
+    linkedin_recruiter_name: recruiter.name,
+    linkedin_recruiter_url:  recruiter.url,
   };
+}
+
+function extractRecruiter() {
+  // Only attempt on LinkedIn job pages
+  if (!window.location.hostname.includes("linkedin.com")) {
+    return { name: null, url: null };
+  }
+
+  // Selectors for the recruiter / job poster on LinkedIn (multiple UI variants)
+  const posterSelectors = [
+    // 2024+ unified top card poster
+    ".job-details-jobs-unified-top-card__job-poster-container a",
+    // Hiring team card
+    ".hirer-card__hirer-information a",
+    ".jobs-poster__name",
+    // Older layout
+    ".jobs-details-top-card__job-poster a",
+    ".hiring-team__contacts a",
+  ];
+
+  for (const sel of posterSelectors) {
+    const el = document.querySelector(sel);
+    if (!el) continue;
+
+    // Get name from inner span or innerText
+    const nameEl = el.querySelector("span:not(.visually-hidden)") || el;
+    const name = nameEl.innerText?.trim();
+    const url  = el.href?.split("?")[0]; // strip tracking params
+
+    if (name && name.length > 2 && name.length < 80) {
+      return { name, url: url || null };
+    }
+  }
+
+  return { name: null, url: null };
 }
 
 function cleanText(text) {
