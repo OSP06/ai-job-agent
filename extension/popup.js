@@ -7,7 +7,7 @@
  *   3. On "Capture & Process": POST to backend, show results
  */
 
-const DEFAULT_BACKEND = "http://localhost:8000";
+const DEFAULT_BACKEND = "https://ai-job-agent-8zrr.onrender.com";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let scrapedData = null;
