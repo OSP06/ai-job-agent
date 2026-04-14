@@ -103,6 +103,20 @@
       margin: 7px 0;
     }
 
+    /* skill pills */
+    .skills-row {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 2px;
+    }
+    .skill-label {
+      font-size: 10px; color: #555; margin-bottom: 3px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .pill {
+      font-size: 9px; padding: 2px 6px; border-radius: 10px; font-weight: 500;
+    }
+    .pill.match   { background: #0d2b1a; color: #4caf50; border: 1px solid #1a4a2a; }
+    .pill.missing { background: #2b0d0d; color: #ef5350; border: 1px solid #4a1a1a; }
+
     /* all-scores sub-section */
     .scores-label {
       font-size: 10px; color: #555; margin-bottom: 4px;
@@ -214,6 +228,19 @@
     <div class="result-row">
       <span class="label">Application</span>
       <span class="value link" id="resAppLink">—</span>
+    </div>
+
+    <!-- Matched / missing skills -->
+    <hr class="result-divider" id="skillsDivider" style="display:none" />
+    <div id="skillsSection" style="display:none">
+      <div id="matchedSection" style="display:none;margin-bottom:6px">
+        <div class="skill-label">Matched skills</div>
+        <div class="skills-row" id="matchedPills"></div>
+      </div>
+      <div id="missingSection" style="display:none">
+        <div class="skill-label">Missing skills</div>
+        <div class="skills-row" id="missingPills"></div>
+      </div>
     </div>
 
     <!-- All resume scores -->

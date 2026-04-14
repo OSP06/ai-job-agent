@@ -28,6 +28,12 @@ const scoresSection   = document.getElementById("scoresSection");
 const scoresBars      = document.getElementById("scoresBars");
 const backendUrlInput = document.getElementById("backendUrlInput");
 const saveUrlBtn      = document.getElementById("saveUrlBtn");
+const skillsDivider   = document.getElementById("skillsDivider");
+const skillsSection   = document.getElementById("skillsSection");
+const matchedSection  = document.getElementById("matchedSection");
+const missingSection  = document.getElementById("missingSection");
+const matchedPills    = document.getElementById("matchedPills");
+const missingPills    = document.getElementById("missingPills");
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -176,6 +182,24 @@ function displayResult(result) {
   if (result.job_title) jobTitle.textContent  = result.job_title;
   if (result.company)   jobCompany.textContent = result.company;
 
+  // Matched / missing skill pills
+  const matched = result.matched_skills || [];
+  const missing = result.missing_skills || [];
+  if (matched.length || missing.length) {
+    skillsDivider.style.display = "";
+    skillsSection.style.display = "";
+    if (matched.length) {
+      matchedSection.style.display = "";
+      matchedPills.innerHTML = matched.slice(0, 8)
+        .map(s => `<span class="pill match">${s}</span>`).join("");
+    }
+    if (missing.length) {
+      missingSection.style.display = "";
+      missingPills.innerHTML = missing.slice(0, 6)
+        .map(s => `<span class="pill missing">${s}</span>`).join("");
+    }
+  }
+
   // All resume scores breakdown
   const allScores = result.all_resume_scores || {};
   const names = Object.keys(allScores);
@@ -233,6 +257,12 @@ function setStatus(type, text) {
 
 function resetResult() {
   resultBox.classList.remove("visible");
+  skillsDivider.style.display = "none";
+  skillsSection.style.display = "none";
+  matchedSection.style.display = "none";
+  missingSection.style.display = "none";
+  matchedPills.innerHTML = "";
+  missingPills.innerHTML = "";
   scoresDivider.style.display = "none";
   scoresSection.style.display = "none";
   scoresBars.innerHTML = "";
