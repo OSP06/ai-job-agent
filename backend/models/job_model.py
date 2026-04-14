@@ -31,6 +31,7 @@ class ResumeMatch(BaseModel):
     resume_path: str
     score: float                            # 0.0–1.0 cosine similarity
     resume_text_snippet: str               # first 500 chars for outreach prompt
+    all_scores: dict[str, float] = Field(default_factory=dict)  # score for every uploaded resume
 
 
 # ─── Outreach message ─────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ class ProcessJobResponse(BaseModel):
     company: str
     match_score: float
     resume_used: str
+    all_resume_scores: dict[str, float] = Field(default_factory=dict)
     outreach_generated: bool
     outreach_skipped_reason: Optional[str] = None
     gmail_draft_id: Optional[str] = None

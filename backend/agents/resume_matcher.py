@@ -78,9 +78,9 @@ def _build_job_query(job: JobData) -> str:
 def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
     """
     Returns the best-matching resume or None if no resumes are loaded.
-    Pass db to trigger a DB reload if the cache is empty.
+    Always reloads from DB when db is provided to stay in sync with uploads.
     """
-    if not _resume_cache and db is not None:
+    if db is not None:
         load_resumes_from_db(db)
 
     if not _resume_cache:
@@ -93,10 +93,11 @@ def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
     best_name: Optional[str] = None
     best_score = -1.0
     best_text = ""
+    all_scores: dict[str, float] = {}
 
     for name, (text, embedding) in _resume_cache.items():
         score = cosine_similarity(query_embedding, embedding)
-        logger.debug(f"Resume '{name}' score: {score:.3f}")
+        all_scores[name] = round(score, 4)
         if score > best_score:
             best_score = score
             best_name = name
@@ -106,8 +107,8 @@ def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
         return None
 
     logger.info(
-        f"Best resume: '{best_name}' score={best_score:.3f} "
-        f"(threshold={settings.match_score_threshold})"
+        f"Resume scores: {all_scores} → best='{best_name}' ({best_score:.0%}) "
+        f"threshold={settings.match_score_threshold:.0%}"
     )
 
     return ResumeMatch(
@@ -115,6 +116,7 @@ def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
         resume_path=f"db:{best_name}",
         score=round(best_score, 4),
         resume_text_snippet=best_text[:500],
+        all_scores=all_scores,
     )
 
 

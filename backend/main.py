@@ -188,6 +188,7 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         company=job.company,
         match_score=score,
         resume_used=resume_match.resume_name,
+        all_resume_scores=resume_match.all_scores,
         outreach_generated=outreach_msg is not None,
         outreach_skipped_reason=skip_reason,
         gmail_draft_id=gmail_draft_id,
