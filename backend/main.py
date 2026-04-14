@@ -101,7 +101,7 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
     job = await parse_job(job_input)
 
     # Step 2 — Match resume
-    resume_match = match_resume(job)
+    resume_match = match_resume(job, db=db)
     if not resume_match:
         raise HTTPException(
             status_code=422,
@@ -402,36 +402,32 @@ def export_csv(db: Session = Depends(get_db)):
 # ─── POST /api/resumes/upload ────────────────────────────────────────────────
 
 @app.post("/api/resumes/upload", tags=["Resumes"])
-async def upload_resume(file: UploadFile = File(...)):
-    """Upload a PDF resume. Stored in backend/resumes/ and cached for matching."""
+async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """
+    Upload a PDF resume. Text and embedding are stored in the database so they
+    survive across server restarts (no persistent filesystem required).
+    """
     if not file.filename or not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
 
-    resumes_dir = Path(settings.resumes_dir)
-    resumes_dir.mkdir(parents=True, exist_ok=True)
-
-    dest = resumes_dir / file.filename
+    from backend.agents.resume_matcher import ingest_pdf
     contents = await file.read()
-    dest.write_bytes(contents)
+    try:
+        record = ingest_pdf(contents, file.filename, db)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
-    # Reload resume cache
-    from backend.agents.resume_matcher import reload_resumes
-    count = reload_resumes()
-
-    logger.info(f"Resume uploaded: {file.filename} ({len(contents)} bytes). Cache now has {count} resume(s).")
-    return {"filename": file.filename, "size_bytes": len(contents), "resumes_loaded": count}
+    return {"filename": file.filename, "resume_name": record.name, "size_bytes": len(contents)}
 
 
 # ─── GET /api/resumes ─────────────────────────────────────────────────────────
 
 @app.get("/api/resumes", tags=["Resumes"])
-def list_resumes():
+def list_resumes(db: Session = Depends(get_db)):
     """List all uploaded resumes."""
-    resumes_dir = Path(settings.resumes_dir)
-    if not resumes_dir.exists():
-        return {"resumes": []}
-    pdfs = [f.name for f in resumes_dir.glob("*.pdf")]
-    return {"resumes": pdfs, "count": len(pdfs)}
+    from backend.storage.database import get_all_resumes
+    rows = get_all_resumes(db)
+    return {"resumes": [r.name for r in rows], "count": len(rows)}
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────

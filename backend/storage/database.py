@@ -10,6 +10,7 @@ followups         — day-7 and day-14 follow-up emails
 """
 
 import json
+import os
 from datetime import datetime, date, timedelta
 from typing import Optional
 
@@ -32,10 +33,16 @@ from backend.config import settings
 
 # ─── Engine & session ─────────────────────────────────────────────────────────
 
-engine = create_engine(
-    f"sqlite:///{settings.db_path}",
-    connect_args={"check_same_thread": False},
-)
+def _build_engine():
+    url = os.environ.get("DATABASE_URL", f"sqlite:///{settings.db_path}")
+    # Render supplies postgres:// but SQLAlchemy requires postgresql://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    kwargs = {"connect_args": {"check_same_thread": False}} if url.startswith("sqlite") else {}
+    return create_engine(url, **kwargs)
+
+
+engine = _build_engine()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
@@ -128,6 +135,18 @@ class Followup(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     outreach = relationship("OutreachMessage", back_populates="followups")
+
+
+class Resume(Base):
+    """Stores resume text + embedding so data persists without a filesystem volume."""
+    __tablename__ = "resumes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)   # filename stem, e.g. "john_doe_resume"
+    text = Column(Text, nullable=False)
+    embedding_json = Column(Text, nullable=False)        # JSON array of floats
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ─── Init ─────────────────────────────────────────────────────────────────────
@@ -324,3 +343,35 @@ def mark_followup_sent(db: Session, followup_id: int) -> Optional[Followup]:
     db.commit()
     db.refresh(followup)
     return followup
+
+
+# ─── CRUD: Resumes ────────────────────────────────────────────────────────────
+
+def upsert_resume(db: Session, name: str, text: str, embedding: list) -> Resume:
+    """Insert or replace a resume record."""
+    existing = db.query(Resume).filter(Resume.name == name).first()
+    if existing:
+        existing.text = text
+        existing.embedding_json = json.dumps(embedding)
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        return existing
+    resume = Resume(name=name, text=text, embedding_json=json.dumps(embedding))
+    db.add(resume)
+    db.commit()
+    db.refresh(resume)
+    return resume
+
+
+def get_all_resumes(db: Session) -> list[Resume]:
+    return db.query(Resume).all()
+
+
+def delete_resume(db: Session, name: str) -> bool:
+    existing = db.query(Resume).filter(Resume.name == name).first()
+    if not existing:
+        return False
+    db.delete(existing)
+    db.commit()
+    return True

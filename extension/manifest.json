@@ -12,7 +12,7 @@
 
   "host_permissions": [
     "http://localhost:8000/*",
-    "https://*.fly.dev/*",
+    "https://*.onrender.com/*",
     "<all_urls>"
   ],
 

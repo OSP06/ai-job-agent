@@ -16,6 +16,7 @@ pdfplumber>=0.11.0
 
 # Database
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0   # Postgres driver for Render; unused locally (SQLite)
 
 # Scheduler
 apscheduler>=3.10.0

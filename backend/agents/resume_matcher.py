@@ -1,87 +1,96 @@
 """
 resume_matcher.py
 ─────────────────
-Loads all PDFs from the resumes/ directory, computes sentence-transformer
-embeddings, and returns the best-matching resume for a given job description.
+Loads resumes from the database (text + pre-computed embeddings).
+Resumes are stored in the DB so they survive across Render restarts
+without needing a persistent filesystem volume.
 
-Match score is a cosine similarity (0.0–1.0).
-If score < settings.match_score_threshold, outreach generation is skipped.
+Upload flow:  POST /api/resumes/upload  →  extract text  →  embed  →  upsert DB  →  refresh cache
+Match flow:   match_resume(job)  →  cosine similarity vs cached embeddings  →  ResumeMatch
 """
 
+import json
 import re
 from pathlib import Path
+from typing import Optional
 
 from backend.config import settings
 from backend.models.job_model import JobData, ResumeMatch
 from backend.utils.embeddings import cosine_similarity, encode
 from backend.utils.logger import logger
 
-# In-memory cache: {resume_name: (text, embedding)}
-_resume_cache: dict[str, tuple[str, object]] = {}  # {name: (text, embedding)}
+# In-memory cache: {name: (text, embedding)}
+_resume_cache: dict[str, tuple[str, list]] = {}
 
 
-def _load_resumes() -> None:
-    """Load and embed all PDFs from the resumes directory."""
-    resumes_dir = Path(settings.resumes_dir)
-    if not resumes_dir.exists():
-        logger.warning(f"Resumes directory not found: {resumes_dir}")
-        return
-
-    pdf_files = list(resumes_dir.glob("*.pdf"))
-    if not pdf_files:
-        logger.warning("No PDF resumes found. Add PDFs to backend/resumes/")
-        return
-
-    for pdf_path in pdf_files:
-        name = pdf_path.stem
-        if name in _resume_cache:
-            continue
+def load_resumes_from_db(db) -> int:
+    """Populate in-memory cache from the resumes table. Returns count loaded."""
+    from backend.storage.database import get_all_resumes
+    _resume_cache.clear()
+    rows = get_all_resumes(db)
+    for row in rows:
         try:
-            text = _extract_pdf_text(pdf_path)
-            embedding = encode(text[:3000])  # use first ~3000 chars for embedding
-            _resume_cache[name] = (text, embedding)
-            logger.info(f"Loaded resume: {name} ({len(text)} chars)")
+            embedding = json.loads(row.embedding_json)
+            _resume_cache[row.name] = (row.text, embedding)
         except Exception as e:
-            logger.error(f"Failed to load {pdf_path.name}: {e}")
+            logger.error(f"Failed to load resume '{row.name}' from DB: {e}")
+    logger.info(f"Loaded {len(_resume_cache)} resume(s) from database.")
+    return len(_resume_cache)
 
 
-def _extract_pdf_text(path: Path) -> str:
-    import pdfplumber  # lazy import — avoids slow startup
+def ingest_pdf(pdf_bytes: bytes, filename: str, db) -> "ResumeRecord":
+    """
+    Extract text from PDF bytes, compute embedding, persist to DB, update cache.
+    Returns the DB record.
+    """
+    from backend.storage.database import upsert_resume
+    name = Path(filename).stem
+    text = _extract_text_from_bytes(pdf_bytes)
+    if not text:
+        raise ValueError(f"Could not extract any text from {filename}")
+    embedding = encode(text[:8000])
+    record = upsert_resume(db, name=name, text=text, embedding=embedding)
+    _resume_cache[name] = (text, embedding)
+    logger.info(f"Resume ingested: '{name}' ({len(text)} chars)")
+    return record
+
+
+def _extract_text_from_bytes(pdf_bytes: bytes) -> str:
+    import io
+    import pdfplumber  # lazy import
     text_parts = []
-    with pdfplumber.open(path) as pdf:
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for page in pdf.pages:
             page_text = page.extract_text()
             if page_text:
                 text_parts.append(page_text)
     raw = "\n".join(text_parts)
-    # Collapse excessive whitespace
     return re.sub(r"\n{3,}", "\n\n", raw).strip()
 
 
 def _build_job_query(job: JobData) -> str:
-    """Combine job fields into a single string for embedding."""
     parts = [job.title, job.company, job.description]
     if job.requirements:
         parts.append("Requirements: " + ", ".join(job.requirements))
     return " ".join(filter(None, parts))
 
 
-def match_resume(job: JobData) -> ResumeMatch | None:
+def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
     """
     Returns the best-matching resume or None if no resumes are loaded.
-    The caller is responsible for checking score vs threshold.
+    Pass db to trigger a DB reload if the cache is empty.
     """
-    if not _resume_cache:
-        _load_resumes()
+    if not _resume_cache and db is not None:
+        load_resumes_from_db(db)
 
     if not _resume_cache:
-        logger.warning("No resumes available — skipping resume matching")
+        logger.warning("No resumes in cache — skipping resume matching")
         return None
 
     query = _build_job_query(job)
     query_embedding = encode(query)
 
-    best_name: str | None = None
+    best_name: Optional[str] = None
     best_score = -1.0
     best_text = ""
 
@@ -96,8 +105,6 @@ def match_resume(job: JobData) -> ResumeMatch | None:
     if best_name is None:
         return None
 
-    resume_path = str(Path(settings.resumes_dir) / f"{best_name}.pdf")
-
     logger.info(
         f"Best resume: '{best_name}' score={best_score:.3f} "
         f"(threshold={settings.match_score_threshold})"
@@ -105,14 +112,12 @@ def match_resume(job: JobData) -> ResumeMatch | None:
 
     return ResumeMatch(
         resume_name=best_name,
-        resume_path=resume_path,
+        resume_path=f"db:{best_name}",
         score=round(best_score, 4),
         resume_text_snippet=best_text[:500],
     )
 
 
-def reload_resumes() -> int:
-    """Clear cache and reload all resumes. Returns count loaded."""
-    _resume_cache.clear()
-    _load_resumes()
-    return len(_resume_cache)
+def reload_resumes(db) -> int:
+    """Clear cache and reload from DB."""
+    return load_resumes_from_db(db)

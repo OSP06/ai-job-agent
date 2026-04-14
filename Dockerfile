@@ -1,9 +1,11 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# System deps for pdfplumber
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Upgrade all system packages first to patch known CVEs in the base image,
+# then install only the runtime dep pdfplumber needs (libpoppler-cpp-dev).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
     libpoppler-cpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -12,12 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Runtime dirs (Fly.io mounts /data as a persistent volume)
 RUN mkdir -p backend/resumes backend/storage logs
 
 ENV PYTHONUNBUFFERED=1
-ENV DB_PATH=/data/jobs.db
-ENV RESUMES_DIR=/data/resumes
+# DB_PATH is only used when DATABASE_URL is not set (local dev / SQLite fallback)
+ENV DB_PATH=backend/storage/jobs.db
 
 EXPOSE 8000
 

@@ -1,0 +1,46 @@
+# render.yaml — Render.com deployment config for AI Job Agent
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: ai-job-agent
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-job-agent-db
+          property: connectionString
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MATCH_SCORE_THRESHOLD
+        value: "0.70"
+      - key: FOLLOWUP_DAY_1
+        value: "7"
+      - key: FOLLOWUP_DAY_2
+        value: "14"
+      # Set these manually in the Render dashboard after deploy:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GMAIL_SENDER_EMAIL
+        sync: false
+      - key: GMAIL_TOKEN_JSON
+        sync: false
+      # Optional:
+      - key: HUNTER_API_KEY
+        sync: false
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_DATABASE_ID
+        sync: false
+
+databases:
+  - name: ai-job-agent-db
+    plan: free          # 1GB storage, free for 90 days, then $7/mo or recreate
+    databaseName: aijobagent
+    user: aijobagent
