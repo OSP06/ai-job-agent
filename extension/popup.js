@@ -1,38 +1,36 @@
 /**
  * popup.js — AI Job Agent
- * ────────────────────────
- * Orchestrates the Chrome extension popup:
- *   1. On open: inject content.js and scrape the active tab
- *   2. Display job title/company preview
- *   3. On "Capture & Process": POST to backend, show results
  */
 
 const DEFAULT_BACKEND = "https://ai-job-agent-8zrr.onrender.com";
 
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 let scrapedData = null;
-let backendUrl = DEFAULT_BACKEND;
+let backendUrl  = DEFAULT_BACKEND;
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
-const jobCard          = document.getElementById("jobCard");
-const jobTitle         = document.getElementById("jobTitle");
-const jobCompany       = document.getElementById("jobCompany");
-const jobUrl           = document.getElementById("jobUrl");
-const statusBadge      = document.getElementById("statusBadge");
-const statusText       = document.getElementById("statusText");
-const processBtn       = document.getElementById("processBtn");
-const refreshBtn       = document.getElementById("refreshBtn");
-const resultBox        = document.getElementById("resultBox");
-const resScore         = document.getElementById("resScore");
-const resResume        = document.getElementById("resResume");
-const resOutreach      = document.getElementById("resOutreach");
-const resDraft         = document.getElementById("resDraft");
-const backendUrlInput  = document.getElementById("backendUrlInput");
-const saveUrlBtn       = document.getElementById("saveUrlBtn");
+const jobCard         = document.getElementById("jobCard");
+const jobTitle        = document.getElementById("jobTitle");
+const jobCompany      = document.getElementById("jobCompany");
+const jobUrl          = document.getElementById("jobUrl");
+const statusBadge     = document.getElementById("statusBadge");
+const statusText      = document.getElementById("statusText");
+const processBtn      = document.getElementById("processBtn");
+const refreshBtn      = document.getElementById("refreshBtn");
+const resultBox       = document.getElementById("resultBox");
+const resScore        = document.getElementById("resScore");
+const resResume       = document.getElementById("resResume");
+const resOutreach     = document.getElementById("resOutreach");
+const resDraft        = document.getElementById("resDraft");
+const resAppLink      = document.getElementById("resAppLink");
+const scoresDivider   = document.getElementById("scoresDivider");
+const scoresSection   = document.getElementById("scoresSection");
+const scoresBars      = document.getElementById("scoresBars");
+const backendUrlInput = document.getElementById("backendUrlInput");
+const saveUrlBtn      = document.getElementById("saveUrlBtn");
 
-// ─── On popup open ────────────────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  // Load saved backend URL
   chrome.storage.local.get(["backendUrl"], (result) => {
     backendUrl = result.backendUrl || DEFAULT_BACKEND;
     backendUrlInput.value = backendUrl;
@@ -40,6 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   processBtn.addEventListener("click", handleProcess);
+
   refreshBtn.addEventListener("click", () => {
     resetResult();
     scrapeCurrentTab();
@@ -59,6 +58,11 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     chrome.tabs.create({ url: `${backendUrl}/docs` });
   });
+
+  document.getElementById("appsLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: `${backendUrl}/api/applications` });
+  });
 });
 
 // ─── Scrape ───────────────────────────────────────────────────────────────────
@@ -70,17 +74,13 @@ async function scrapeCurrentTab() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    // Inject content script (safe to call even if already injected)
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       files: ["content.js"],
     });
 
     const response = await chrome.tabs.sendMessage(tab.id, { action: "scrape_job" });
-
-    if (!response || !response.success) {
-      throw new Error(response?.error || "Scrape failed");
-    }
+    if (!response || !response.success) throw new Error(response?.error || "Scrape failed");
 
     scrapedData = response.data;
     displayPreview(scrapedData, tab);
@@ -96,12 +96,10 @@ async function scrapeCurrentTab() {
 
 function displayPreview(data, tab) {
   jobCard.classList.remove("empty");
-
-  // Try to extract title/company from page title heuristic
   const parts = (tab.title || "").split(/[-|–—@·]/);
-  jobTitle.textContent = parts[0]?.trim() || "Job Posting";
+  jobTitle.textContent  = parts[0]?.trim() || "Job Posting";
   jobCompany.textContent = parts[1]?.trim() || "";
-  jobUrl.textContent = data.url;
+  jobUrl.textContent    = data.url;
 }
 
 // ─── Process ──────────────────────────────────────────────────────────────────
@@ -109,8 +107,8 @@ async function handleProcess() {
   if (!scrapedData) return;
 
   setStatus("processing", "Processing… (10–30s)");
-  processBtn.disabled = true;
-  refreshBtn.disabled = true;
+  processBtn.disabled  = true;
+  refreshBtn.disabled  = true;
   resetResult();
 
   try {
@@ -137,50 +135,112 @@ async function handleProcess() {
   }
 }
 
+// ─── Display result ───────────────────────────────────────────────────────────
 function displayResult(result) {
-  const score = result.match_score;
-  const scorePct = `${(score * 100).toFixed(0)}%`;
+  const score    = result.match_score;
+  const scorePct = pct(score);
 
+  // Determine threshold from the skip reason if available, else assume 0.9
+  const threshold = parseThreshold(result.outreach_skipped_reason) ?? 0.9;
+
+  // Score pill with colour based on real threshold
   resScore.textContent = scorePct;
-  resScore.className = "value " + (score >= 0.7 ? "score-high" : "score-low");
+  resScore.className   = "value " + scoreClass(score, threshold);
 
+  // Resume used
   resResume.textContent = result.resume_used || "—";
 
+  // Outreach
   if (result.outreach_generated) {
-    resOutreach.textContent = "Generated ✓";
-    resOutreach.style.color = "#4caf50";
+    resOutreach.textContent  = "Generated ✓";
+    resOutreach.style.color  = "#4caf50";
   } else {
-    resOutreach.textContent = `Skipped (${scorePct} < 70%)`;
+    resOutreach.textContent = result.outreach_skipped_reason || `Skipped (${scorePct})`;
     resOutreach.style.color = "#888";
   }
 
+  // Gmail draft
   resDraft.textContent = result.gmail_draft_id ? "Created ✓" : "Not created";
   resDraft.style.color = result.gmail_draft_id ? "#4caf50" : "#666";
 
+  // Application link
+  if (result.application_id) {
+    resAppLink.textContent = `#${result.application_id} — view →`;
+    resAppLink.onclick = () => chrome.tabs.create({
+      url: `${backendUrl}/api/applications/${result.application_id}`,
+    });
+  }
+
   // Update job card with parsed data
   jobCard.classList.remove("empty");
-  jobTitle.textContent = result.job_title || jobTitle.textContent;
-  jobCompany.textContent = result.company || jobCompany.textContent;
+  if (result.job_title) jobTitle.textContent  = result.job_title;
+  if (result.company)   jobCompany.textContent = result.company;
+
+  // All resume scores breakdown
+  const allScores = result.all_resume_scores || {};
+  const names = Object.keys(allScores);
+  if (names.length > 1) {
+    scoresDivider.style.display = "";
+    scoresSection.style.display = "";
+    scoresBars.innerHTML = "";
+
+    const maxScore = Math.max(...Object.values(allScores), 0.01);
+
+    // Sort descending
+    names.sort((a, b) => allScores[b] - allScores[a]);
+
+    names.forEach((name) => {
+      const s     = allScores[name];
+      const isBest = name === result.resume_used;
+      const barPct  = Math.round((s / maxScore) * 100);
+      const fillCls = isBest
+        ? (s >= threshold ? "bar-fill best" : "bar-fill low")
+        : "bar-fill";
+
+      scoresBars.innerHTML += `
+        <div class="score-bar-row">
+          <span class="sname ${isBest ? "best" : ""}">${name}</span>
+          <div class="bar-track"><div class="${fillCls}" style="width:${barPct}%"></div></div>
+          <span class="spct">${pct(s)}</span>
+        </div>`;
+    });
+  }
 
   resultBox.classList.add("visible");
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function pct(v) { return `${(v * 100).toFixed(0)}%`; }
+
+function scoreClass(score, threshold) {
+  if (score >= threshold)        return "score-high";
+  if (score >= threshold * 0.75) return "score-mid";
+  return "score-low";
+}
+
+function parseThreshold(reason) {
+  if (!reason) return null;
+  const m = reason.match(/threshold\s+([\d.]+)%/i);
+  return m ? parseFloat(m[1]) / 100 : null;
+}
+
 function setStatus(type, text) {
   statusBadge.className = `badge ${type}`;
   statusText.textContent = text;
-
   const dot = statusBadge.querySelector(".dot");
-  if (dot) {
-    dot.classList.toggle("pulse", type === "processing" || type === "scraping");
-  }
+  if (dot) dot.classList.toggle("pulse", type === "processing" || type === "scraping");
 }
 
 function resetResult() {
   resultBox.classList.remove("visible");
+  scoresDivider.style.display = "none";
+  scoresSection.style.display = "none";
+  scoresBars.innerHTML = "";
   [resScore, resResume, resOutreach, resDraft].forEach((el) => {
     el.textContent = "—";
-    el.className = "value";
+    el.className   = "value";
     el.style.color = "";
   });
+  resAppLink.textContent = "—";
+  resAppLink.onclick     = null;
 }

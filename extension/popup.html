@@ -9,12 +9,13 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      width: 340px;
+      width: 360px;
       background: #0f0f12;
       color: #e8e8ec;
       padding: 16px;
     }
 
+    /* ── Header ── */
     .header {
       display: flex;
       align-items: center;
@@ -25,77 +26,48 @@
     .header h1 { font-size: 15px; font-weight: 600; color: #fff; }
     .header p  { font-size: 11px; color: #777; }
 
-    /* Job preview card */
+    /* ── Job preview card ── */
     .job-card {
       background: #1a1a20;
       border: 1px solid #2a2a35;
       border-radius: 8px;
       padding: 12px;
-      margin-bottom: 14px;
-      min-height: 60px;
+      margin-bottom: 12px;
     }
     .job-card .title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 13px; font-weight: 600; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .job-card .company {
-      font-size: 12px;
-      color: #888;
-      margin-top: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 12px; color: #888; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .job-card .url {
-      font-size: 10px;
-      color: #555;
-      margin-top: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 10px; color: #555; margin-top: 4px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .job-card.empty .title { color: #555; font-weight: 400; }
 
-    /* Status badge */
+    /* ── Status badge ── */
     .status-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-      min-height: 22px;
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 12px; min-height: 22px;
     }
     .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 8px;
-      border-radius: 12px;
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 500;
+      padding: 3px 8px; border-radius: 12px;
     }
-    .badge.idle     { background: #1e1e26; color: #666; }
-    .badge.scraping { background: #1a2535; color: #4a9eff; }
+    .badge.idle      { background: #1e1e26; color: #666; }
+    .badge.scraping  { background: #1a2535; color: #4a9eff; }
     .badge.processing{ background: #1a2535; color: #f4a623; }
-    .badge.success  { background: #102518; color: #4caf50; }
-    .badge.error    { background: #281010; color: #ef5350; }
-    .badge.skipped  { background: #1e1e1a; color: #aaa; }
-
-    .dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-      flex-shrink: 0;
-    }
+    .badge.success   { background: #102518; color: #4caf50; }
+    .badge.error     { background: #281010; color: #ef5350; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
     .dot.pulse { animation: pulse 1s infinite; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    /* Result section */
+    /* ── Result box ── */
     .result-box {
       background: #1a1a20;
       border: 1px solid #2a2a35;
@@ -107,73 +79,90 @@
       display: none;
     }
     .result-box.visible { display: block; }
-    .result-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-    .result-row .label { color: #666; }
-    .result-row .value { color: #ccc; font-weight: 500; text-align: right; max-width: 180px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .result-row {
+      display: flex; justify-content: space-between;
+      align-items: baseline; margin-bottom: 5px;
+    }
+    .result-row:last-child { margin-bottom: 0; }
+    .result-row .label { color: #666; flex-shrink: 0; }
+    .result-row .value {
+      color: #ccc; font-weight: 500; text-align: right;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;
+    }
+    .value.link { color: #4a9eff; cursor: pointer; text-decoration: underline; }
+    .value.link:hover { color: #7ab8ff; }
+
     .score-high { color: #4caf50 !important; }
     .score-low  { color: #ef5350 !important; }
+    .score-mid  { color: #f4a623 !important; }
 
-    /* Buttons */
-    .btn {
-      width: 100%;
-      padding: 9px;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: opacity 0.15s;
+    /* divider inside result box */
+    .result-divider {
+      border: none; border-top: 1px solid #2a2a35;
+      margin: 7px 0;
     }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* all-scores sub-section */
+    .scores-label {
+      font-size: 10px; color: #555; margin-bottom: 4px;
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .score-bar-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 3px;
+    }
+    .score-bar-row .sname {
+      color: #888; font-size: 10px; width: 110px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+    }
+    .score-bar-row .sname.best { color: #ccc; font-weight: 600; }
+    .bar-track {
+      flex: 1; height: 4px; background: #2a2a35; border-radius: 2px; overflow: hidden;
+    }
+    .bar-fill { height: 100%; border-radius: 2px; background: #4a9eff; transition: width .3s; }
+    .bar-fill.best { background: #4caf50; }
+    .bar-fill.low  { background: #ef5350; }
+    .score-bar-row .spct {
+      font-size: 10px; color: #666; width: 34px; text-align: right; flex-shrink: 0;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%; padding: 9px; border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
     .btn-primary { background: #4a9eff; color: #fff; }
-    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn-primary:hover:not(:disabled) { opacity: .88; }
     .btn-secondary {
       background: #1e1e26; color: #aaa;
-      border: 1px solid #2a2a35;
-      margin-top: 6px;
+      border: 1px solid #2a2a35; margin-top: 6px;
     }
     .btn-secondary:hover:not(:disabled) { color: #ddd; }
 
-    /* Link */
-    .docs-link {
-      display: block;
-      text-align: center;
-      font-size: 10px;
-      color: #444;
+    /* ── Footer links ── */
+    .footer-links {
+      display: flex; justify-content: space-between;
       margin-top: 10px;
-      text-decoration: none;
     }
-    .docs-link:hover { color: #666; }
+    .footer-link {
+      font-size: 10px; color: #444; text-decoration: none; cursor: pointer;
+    }
+    .footer-link:hover { color: #666; }
 
-    /* Settings row */
+    /* ── Settings row ── */
     .settings-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 10px;
+      display: flex; align-items: center; gap: 6px; margin-top: 10px;
     }
     .settings-row label { font-size: 10px; color: #555; white-space: nowrap; }
     .settings-row input {
-      flex: 1;
-      background: #1a1a20;
-      border: 1px solid #2a2a35;
-      border-radius: 4px;
-      color: #888;
-      font-size: 10px;
-      padding: 4px 6px;
-      outline: none;
+      flex: 1; background: #1a1a20; border: 1px solid #2a2a35;
+      border-radius: 4px; color: #888; font-size: 10px; padding: 4px 6px; outline: none;
     }
     .settings-row input:focus { border-color: #4a9eff; color: #ccc; }
     .btn-save {
-      background: #1e1e26;
-      border: 1px solid #2a2a35;
-      color: #888;
-      font-size: 10px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      cursor: pointer;
-      white-space: nowrap;
+      background: #1e1e26; border: 1px solid #2a2a35; color: #888;
+      font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap;
     }
     .btn-save:hover { color: #ddd; }
   </style>
@@ -204,8 +193,10 @@
 
   <!-- Result -->
   <div class="result-box" id="resultBox">
+
+    <!-- Main stats -->
     <div class="result-row">
-      <span class="label">Match score</span>
+      <span class="label">Best match</span>
       <span class="value" id="resScore">—</span>
     </div>
     <div class="result-row">
@@ -220,17 +211,32 @@
       <span class="label">Gmail draft</span>
       <span class="value" id="resDraft">—</span>
     </div>
+    <div class="result-row">
+      <span class="label">Application</span>
+      <span class="value link" id="resAppLink">—</span>
+    </div>
+
+    <!-- All resume scores -->
+    <hr class="result-divider" id="scoresDivider" style="display:none" />
+    <div id="scoresSection" style="display:none">
+      <div class="scores-label">All resume scores</div>
+      <div id="scoresBars"></div>
+    </div>
+
   </div>
 
   <!-- Actions -->
   <button class="btn btn-primary" id="processBtn" disabled>Capture &amp; Process</button>
   <button class="btn btn-secondary" id="refreshBtn">Re-scan page</button>
 
-  <a class="docs-link" id="docsLink" href="#">Open API dashboard →</a>
+  <div class="footer-links">
+    <a class="footer-link" id="docsLink" href="#">API dashboard →</a>
+    <a class="footer-link" id="appsLink" href="#">All applications →</a>
+  </div>
 
   <div class="settings-row">
     <label for="backendUrlInput">Backend</label>
-    <input type="text" id="backendUrlInput" placeholder="https://your-app.railway.app" />
+    <input type="text" id="backendUrlInput" placeholder="https://your-app.onrender.com" />
     <button class="btn-save" id="saveUrlBtn">Save</button>
   </div>
 
