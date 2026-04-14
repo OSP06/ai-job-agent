@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Job Agent</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      width: 340px;
+      background: #0f0f12;
+      color: #e8e8ec;
+      padding: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .header-icon { font-size: 20px; }
+    .header h1 { font-size: 15px; font-weight: 600; color: #fff; }
+    .header p  { font-size: 11px; color: #777; }
+
+    /* Job preview card */
+    .job-card {
+      background: #1a1a20;
+      border: 1px solid #2a2a35;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 14px;
+      min-height: 60px;
+    }
+    .job-card .title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .job-card .company {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .job-card .url {
+      font-size: 10px;
+      color: #555;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .job-card.empty .title { color: #555; font-weight: 400; }
+
+    /* Status badge */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      min-height: 22px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+    .badge.idle     { background: #1e1e26; color: #666; }
+    .badge.scraping { background: #1a2535; color: #4a9eff; }
+    .badge.processing{ background: #1a2535; color: #f4a623; }
+    .badge.success  { background: #102518; color: #4caf50; }
+    .badge.error    { background: #281010; color: #ef5350; }
+    .badge.skipped  { background: #1e1e1a; color: #aaa; }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .dot.pulse { animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    /* Result section */
+    .result-box {
+      background: #1a1a20;
+      border: 1px solid #2a2a35;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      line-height: 1.6;
+      display: none;
+    }
+    .result-box.visible { display: block; }
+    .result-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .result-row .label { color: #666; }
+    .result-row .value { color: #ccc; font-weight: 500; text-align: right; max-width: 180px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .score-high { color: #4caf50 !important; }
+    .score-low  { color: #ef5350 !important; }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 9px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #4a9eff; color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn-secondary {
+      background: #1e1e26; color: #aaa;
+      border: 1px solid #2a2a35;
+      margin-top: 6px;
+    }
+    .btn-secondary:hover:not(:disabled) { color: #ddd; }
+
+    /* Link */
+    .docs-link {
+      display: block;
+      text-align: center;
+      font-size: 10px;
+      color: #444;
+      margin-top: 10px;
+      text-decoration: none;
+    }
+    .docs-link:hover { color: #666; }
+
+    /* Settings row */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .settings-row label { font-size: 10px; color: #555; white-space: nowrap; }
+    .settings-row input {
+      flex: 1;
+      background: #1a1a20;
+      border: 1px solid #2a2a35;
+      border-radius: 4px;
+      color: #888;
+      font-size: 10px;
+      padding: 4px 6px;
+      outline: none;
+    }
+    .settings-row input:focus { border-color: #4a9eff; color: #ccc; }
+    .btn-save {
+      background: #1e1e26;
+      border: 1px solid #2a2a35;
+      color: #888;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-save:hover { color: #ddd; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-icon">🤖</span>
+    <div>
+      <h1>AI Job Agent</h1>
+      <p>Capture · Match · Outreach</p>
+    </div>
+  </div>
+
+  <!-- Job preview -->
+  <div class="job-card empty" id="jobCard">
+    <div class="title" id="jobTitle">Scanning page…</div>
+    <div class="company" id="jobCompany"></div>
+    <div class="url" id="jobUrl"></div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-row">
+    <span class="badge idle" id="statusBadge">
+      <span class="dot"></span>
+      <span id="statusText">Ready</span>
+    </span>
+  </div>
+
+  <!-- Result -->
+  <div class="result-box" id="resultBox">
+    <div class="result-row">
+      <span class="label">Match score</span>
+      <span class="value" id="resScore">—</span>
+    </div>
+    <div class="result-row">
+      <span class="label">Resume used</span>
+      <span class="value" id="resResume">—</span>
+    </div>
+    <div class="result-row">
+      <span class="label">Outreach</span>
+      <span class="value" id="resOutreach">—</span>
+    </div>
+    <div class="result-row">
+      <span class="label">Gmail draft</span>
+      <span class="value" id="resDraft">—</span>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <button class="btn btn-primary" id="processBtn" disabled>Capture &amp; Process</button>
+  <button class="btn btn-secondary" id="refreshBtn">Re-scan page</button>
+
+  <a class="docs-link" id="docsLink" href="#">Open API dashboard →</a>
+
+  <div class="settings-row">
+    <label for="backendUrlInput">Backend</label>
+    <input type="text" id="backendUrlInput" placeholder="https://your-app.railway.app" />
+    <button class="btn-save" id="saveUrlBtn">Save</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

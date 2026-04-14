@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "AI Job Agent",
+  "version": "1.0.0",
+  "description": "Capture job postings and send them to your local AI job agent for resume matching and outreach generation.",
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://*.railway.app/*",
+    "https://*.up.railway.app/*",
+    "<all_urls>"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "AI Job Agent"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

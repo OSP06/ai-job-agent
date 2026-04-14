@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Env & secrets
+.env
+backend/credentials.json
+backend/token.json
+
+# Database
+*.db
+*.sqlite
+
+# Resumes (personal files — add your own)
+backend/resumes/*.pdf
+
+# Logs
+logs/
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Model/pip cache
+.cache/
+
+# Railway / Docker
+*.env.local
