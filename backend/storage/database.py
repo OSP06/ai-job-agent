@@ -74,6 +74,7 @@ class Application(Base):
     requirements_json = Column(Text, default="[]")
     resume_used = Column(String)
     match_score = Column(Float)
+    missing_skills_json = Column(Text, default="[]")
 
     # Status lifecycle: captured → applied → interviewing → rejected | offer | no_response
     status = Column(String, default="captured")
@@ -157,6 +158,10 @@ def init_db() -> None:
 
 # ─── CRUD: Applications ───────────────────────────────────────────────────────
 
+def get_application_by_url(db: Session, url: str) -> Optional[Application]:
+    return db.query(Application).filter(Application.url == url).first()
+
+
 def create_application(
     db: Session,
     job_title: str,
@@ -170,6 +175,7 @@ def create_application(
     salary: Optional[str] = None,
     job_type: Optional[str] = None,
     status: str = "captured",
+    missing_skills: list[str] = [],
 ) -> Application:
     app = Application(
         job_title=job_title,
@@ -183,6 +189,7 @@ def create_application(
         salary=salary,
         job_type=job_type,
         status=status,
+        missing_skills_json=json.dumps(missing_skills),
     )
     db.add(app)
     db.commit()

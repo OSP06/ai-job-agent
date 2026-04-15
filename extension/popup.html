@@ -230,6 +230,20 @@
     .bar-fill.low  { background: #ef4444; }
     .score-bar-row .spct { font-size: 10px; color: #44445a; width: 34px; text-align: right; flex-shrink: 0; }
 
+    /* ── Apply bar ── */
+    .apply-bar {
+      padding: 0 14px 12px;
+    }
+    .btn-apply {
+      width: 100%; padding: 8px; border: 1px solid #22c55e22;
+      border-radius: 7px; background: #091c1022;
+      color: #22c55e; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: background .15s, border-color .15s;
+      letter-spacing: -0.01em;
+    }
+    .btn-apply:hover:not(:disabled) { background: #091c1044; border-color: #22c55e55; }
+    .btn-apply:disabled { opacity: .5; cursor: not-allowed; }
+
     /* ── Buttons ── */
     .btn {
       width: 100%; padding: 10px; border: none; border-radius: 8px;
@@ -343,6 +357,11 @@
         <span class="label">Application</span>
         <span class="value link" id="resAppLink">—</span>
       </div>
+    </div>
+
+    <!-- Apply bar -->
+    <div class="apply-bar" id="applyBar" style="display:none">
+      <button class="btn-apply" id="applyBtn">Mark as Applied</button>
     </div>
 
     <!-- Contacts -->

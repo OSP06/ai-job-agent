@@ -28,6 +28,8 @@ const outreachPanel     = document.getElementById("outreachPanel");
 const emailSubject      = document.getElementById("emailSubject");
 const emailBody         = document.getElementById("emailBody");
 const copyBtn           = document.getElementById("copyBtn");
+const applyBar          = document.getElementById("applyBar");
+const applyBtn          = document.getElementById("applyBtn");
 const scoresDivider     = document.getElementById("scoresDivider");
 const scoresSection     = document.getElementById("scoresSection");
 const scoresBars        = document.getElementById("scoresBars");
@@ -152,6 +154,14 @@ async function handleProcess() {
       body: JSON.stringify(scrapedData),
     });
 
+    if (resp.status === 409) {
+      const err = await resp.json().catch(() => ({}));
+      const id = (err.detail || "").split(":")[1];
+      setStatus("idle", `Already captured${id ? ` — Application #${id}` : ""}`);
+      processBtn.disabled = false;
+      refreshBtn.disabled = false;
+      return;
+    }
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: resp.statusText }));
       throw new Error(err.detail || `HTTP ${resp.status}`);
@@ -236,6 +246,33 @@ function displayResult(result) {
       setTimeout(() => { copyBtn.textContent = "Copy email"; }, 2000);
     });
   };
+
+  // ── Apply bar ──
+  if (result.application_id && result.status === "captured") {
+    applyBar.style.display = "";
+    applyBtn.disabled      = false;
+    applyBtn.textContent   = "Mark as Applied";
+    applyBtn.style.color   = "";
+    applyBtn.onclick = async () => {
+      applyBtn.disabled    = true;
+      applyBtn.textContent = "Marking…";
+      try {
+        await fetch(`${backendUrl}/api/applications/${result.application_id}/apply`, { method: "POST" });
+        applyBtn.textContent = "Applied ✓";
+        applyBtn.style.color = "#22c55e";
+        result.status = "applied";
+        chrome.storage.local.get("lastResult", (s) => {
+          if (s.lastResult) {
+            s.lastResult.result.status = "applied";
+            chrome.storage.local.set({ lastResult: s.lastResult });
+          }
+        });
+      } catch {
+        applyBtn.disabled    = false;
+        applyBtn.textContent = "Mark as Applied";
+      }
+    };
+  }
 
   // ── Contacts ──
   const contacts = result.contacts_found || [];
@@ -370,6 +407,8 @@ function resetResult() {
 
   resAppLink.textContent = "—";
   resAppLink.onclick     = null;
+
+  applyBar.style.display = "none";
 
   contactDivider.style.display  = "none";
   contactsSection.style.display = "none";
