@@ -76,6 +76,8 @@ def generate_outreach(
         return None, skip_reason
 
     client = _get_client()
+    if not client:
+        return None, "ANTHROPIC_API_KEY not configured"
     logger.info(f"Generating outreach for {job.title} @ {job.company}")
 
     user_prompt = f"""Job: {job.title} at {job.company}
