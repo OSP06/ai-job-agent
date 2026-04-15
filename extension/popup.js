@@ -22,7 +22,6 @@ const resultBox         = document.getElementById("resultBox");
 const resScore          = document.getElementById("resScore");
 const resResume         = document.getElementById("resResume");
 const resOutreach       = document.getElementById("resOutreach");
-const resDraft          = document.getElementById("resDraft");
 const resAppLink        = document.getElementById("resAppLink");
 const outreachPanel     = document.getElementById("outreachPanel");
 const emailSubject      = document.getElementById("emailSubject");
@@ -227,16 +226,6 @@ function displayResult(result) {
     resOutreach.className   = "value muted";
   }
 
-  // ── Gmail draft ──
-  if (result.gmail_draft_id) {
-    resDraft.textContent = "Created ✓ — Open →";
-    resDraft.className   = "value clickable";
-    resDraft.onclick     = () => chrome.tabs.create({ url: "https://mail.google.com/mail/u/0/#drafts" });
-  } else {
-    resDraft.textContent = "Not created";
-    resDraft.className   = "value muted";
-  }
-
   // ── Application link ──
   if (result.application_id) {
     resAppLink.textContent = `#${result.application_id} — view →`;
@@ -409,10 +398,6 @@ function resetResult() {
   resOutreach.textContent = "—";
   resOutreach.className   = "value";
   resOutreach.onclick     = null;
-
-  resDraft.textContent = "—";
-  resDraft.className   = "value";
-  resDraft.onclick     = null;
 
   resAppLink.textContent = "—";
   resAppLink.onclick     = null;

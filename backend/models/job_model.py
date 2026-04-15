@@ -100,7 +100,6 @@ class OutreachCreate(BaseModel):
     message_subject: str
     message_body: str
     status: str = "draft"                   # draft | sent
-    gmail_draft_id: Optional[str] = None
 
 
 class OutreachResponse(OutreachCreate):
@@ -121,7 +120,6 @@ class FollowupCreate(BaseModel):
     application_id: int
     message_body: str
     followup_number: int                   # 1 = day-7, 2 = day-14
-    gmail_draft_id: Optional[str] = None
 
 
 class FollowupResponse(FollowupCreate):
@@ -150,5 +148,4 @@ class ProcessJobResponse(BaseModel):
     outreach_skipped_reason: Optional[str] = None
     outreach_subject: Optional[str] = None
     outreach_body: Optional[str] = None
-    gmail_draft_id: Optional[str] = None
     message: str

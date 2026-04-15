@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -31,8 +31,6 @@ from backend.agents.recruiter_finder import find_contacts
 from backend.agents.resume_matcher import match_resume
 from backend.config import settings
 from backend.models.job_model import JobInput, ProcessJobResponse
-from backend.services.email_service import create_gmail_draft
-from backend.services.notion_service import sync_to_notion
 from backend.storage.database import (
     Application,
     create_application,
@@ -74,30 +72,41 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Chrome extension origin
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+
+async def _require_api_key(x_api_key: str = Header(default="")) -> None:
+    """If API_KEY is configured, all write endpoints must supply it via X-Api-Key header."""
+    if settings.api_key and x_api_key != settings.api_key:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+
+
+_AUTH = [Depends(_require_api_key)]
+
 # ─── POST /api/jobs/process ───────────────────────────────────────────────────
 
-@app.post("/api/jobs/process", response_model=ProcessJobResponse, tags=["Pipeline"])
+@app.post("/api/jobs/process", response_model=ProcessJobResponse, tags=["Pipeline"],
+          dependencies=_AUTH)
 async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
     """
     Full pipeline triggered by the Chrome extension:
-    1. Parse job with GPT-4o
-    2. Match resume (sentence-transformers)
-    3. Confidence gate: skip outreach if match_score < threshold
-    4. Generate outreach with Claude Sonnet (if above threshold)
-    5. Look up recruiter via Hunter.io (optional)
-    6. Create Gmail draft (optional)
-    7. Store in SQLite
-    8. Sync to Notion (optional)
+    1. Parse job (Groq / OpenAI)
+    2. Match resume (embeddings + keyword overlap)
+    3. Confidence gate → outreach generation
+    4. Contact discovery via Hunter.io (optional)
+    5. Store application, contacts, and outreach message
     """
-    logger.info(f"Processing job from: {job_input.url}")
+    # Normalise URL before dedup check (case + trailing slash)
+    url = job_input.url.strip().rstrip("/")
 
-    # Duplicate check
-    existing = get_application_by_url(db, job_input.url)
+    logger.info(f"Processing job from: {url}")
+
+    existing = get_application_by_url(db, url)
     if existing:
         raise HTTPException(status_code=409, detail=f"duplicate:{existing.id}")
 
@@ -109,7 +118,7 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
     if not resume_match:
         raise HTTPException(
             status_code=422,
-            detail="No resumes found. Add PDF files to backend/resumes/ and restart.",
+            detail="No resumes found. Upload a PDF via /api/resumes/upload.",
         )
 
     # Step 3 — Confidence gate + outreach generation
@@ -118,22 +127,25 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         outreach_msg, skip_reason = generate_outreach(job, resume_match)
     except Exception as e:
         logger.error(f"Outreach generation failed: {e}")
-        outreach_msg, skip_reason = None, f"Outreach generation error: {e}"
+        outreach_msg, skip_reason = None, f"Outreach error: {e}"
 
-    # Step 4 — Contact discovery (Hunter.io: LinkedIn name + HR dept + management)
+    # Step 4 — Contact discovery (Hunter.io: LinkedIn name → HR → management)
     contacts: list[dict] = []
     if job.company_domain:
-        contacts = await find_contacts(
-            company_domain=job.company_domain,
-            linkedin_name=job_input.linkedin_recruiter_name,
-        )
+        try:
+            contacts = await find_contacts(
+                company_domain=job.company_domain,
+                linkedin_name=job_input.linkedin_recruiter_name,
+            )
+        except Exception as e:
+            logger.warning(f"Contact discovery failed for {job.company_domain}: {e}")
 
     # Step 5 — Store application
     app_record = create_application(
         db=db,
         job_title=job.title,
         company=job.company,
-        url=job_input.url,
+        url=url,
         description=job.description,
         requirements=job.requirements,
         resume_used=resume_match.resume_name,
@@ -145,7 +157,6 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         missing_skills=resume_match.missing_skills,
     )
 
-    # Step 6 — Store all contacts found
     for c in contacts:
         create_contact(
             db=db,
@@ -156,44 +167,21 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
             linkedin_url=c.get("linkedin_url"),
         )
 
-    # Step 7 — Create outreach record + Gmail draft to best verified contact
-    gmail_draft_id: str | None = None
     best_contact = contacts[0] if contacts else None
     if outreach_msg:
-        contact_email = best_contact.get("email") if best_contact else None
-        contact_name  = best_contact.get("name")  if best_contact else None
-
-        if contact_email:
-            gmail_draft_id = create_gmail_draft(
-                to=contact_email,
-                subject=outreach_msg.subject,
-                body=outreach_msg.body,
-            )
-
         create_outreach(
             db=db,
             application_id=app_record.id,
             message_subject=outreach_msg.subject,
             message_body=outreach_msg.body,
-            contact_name=contact_name,
-            contact_email=contact_email,
-            gmail_draft_id=gmail_draft_id,
+            contact_name=best_contact.get("name")  if best_contact else None,
+            contact_email=best_contact.get("email") if best_contact else None,
         )
 
-    # Step 8 — Notion sync (optional)
-    await sync_to_notion(
-        job_title=job.title,
-        company=job.company,
-        url=job_input.url,
-        status="captured",
-        match_score=score,
-        resume_used=resume_match.resume_name,
-        location=job.location,
-    )
-
     logger.info(
-        f"Job processed: {job.title} @ {job.company} | "
-        f"score={score:.0%} | outreach={'yes' if outreach_msg else 'skipped'}"
+        f"Captured: {job.title} @ {job.company} | "
+        f"score={score:.0%} | outreach={'yes' if outreach_msg else 'skipped'} | "
+        f"contacts={len(contacts)}"
     )
 
     return ProcessJobResponse(
@@ -206,19 +194,20 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         matched_skills=resume_match.matched_skills,
         missing_skills=resume_match.missing_skills,
         contacts_found=[
-            {"name": c.get("name"), "email": c.get("email"),
-             "title": c.get("title"), "verified": c.get("verified", False),
-             "source": c.get("source"), "linkedin_url": c.get("linkedin_url")}
+            {
+                "name": c.get("name"), "email": c.get("email"),
+                "title": c.get("title"), "verified": c.get("verified", False),
+                "source": c.get("source"), "linkedin_url": c.get("linkedin_url"),
+            }
             for c in contacts
         ],
         outreach_generated=outreach_msg is not None,
         outreach_skipped_reason=skip_reason,
         outreach_subject=outreach_msg.subject if outreach_msg else None,
-        outreach_body=outreach_msg.body if outreach_msg else None,
-        gmail_draft_id=gmail_draft_id,
+        outreach_body=outreach_msg.body    if outreach_msg else None,
         message=(
-            f"Application captured. Match score: {score:.0%}. "
-            + ("Outreach draft created." if outreach_msg else f"Outreach skipped: {skip_reason}")
+            f"Captured. Match: {score:.0%}. "
+            + ("Outreach ready." if outreach_msg else f"Outreach skipped: {skip_reason}")
         ),
     )
 
@@ -248,7 +237,6 @@ def get_application_detail(application_id: int, db: Session = Depends(get_db)):
             "subject": o.message_subject,
             "body": o.message_body,
             "status": o.status,
-            "gmail_draft_id": o.gmail_draft_id,
             "contact_name": o.contact_name,
             "contact_email": o.contact_email,
             "followups": [
@@ -257,7 +245,6 @@ def get_application_detail(application_id: int, db: Session = Depends(get_db)):
                     "followup_number": f.followup_number,
                     "body": f.message_body,
                     "status": f.status,
-                    "gmail_draft_id": f.gmail_draft_id,
                 }
                 for f in o.followups
             ],
@@ -273,7 +260,8 @@ def get_application_detail(application_id: int, db: Session = Depends(get_db)):
 
 # ─── PATCH /api/applications/{id}/status ─────────────────────────────────────
 
-@app.patch("/api/applications/{application_id}/status", tags=["Applications"])
+@app.patch("/api/applications/{application_id}/status", tags=["Applications"],
+           dependencies=_AUTH)
 def update_status(
     application_id: int,
     status: str = Query(..., description="New status: applied|interviewing|rejected|offer|no_response"),
@@ -290,7 +278,8 @@ def update_status(
 
 # ─── POST /api/applications/{id}/apply ───────────────────────────────────────
 
-@app.post("/api/applications/{application_id}/apply", tags=["Applications"])
+@app.post("/api/applications/{application_id}/apply", tags=["Applications"],
+          dependencies=_AUTH)
 def mark_as_applied(application_id: int, db: Session = Depends(get_db)):
     """
     Mark application as 'applied' and set Day-7 / Day-14 follow-up dates.
@@ -323,7 +312,8 @@ def list_pending_followups(db: Session = Depends(get_db)):
 
 # ─── POST /api/followups/{id}/process ────────────────────────────────────────
 
-@app.post("/api/followups/{application_id}/process", tags=["Follow-ups"])
+@app.post("/api/followups/{application_id}/process", tags=["Follow-ups"],
+          dependencies=_AUTH)
 async def process_followup(
     application_id: int,
     followup_number: int = Query(1, description="1 = Day-7, 2 = Day-14"),
@@ -363,22 +353,13 @@ async def process_followup(
         contact_name=contact_name,
     )
 
-    gmail_draft_id: str | None = None
-    if contact_email:
-        gmail_draft_id = create_gmail_draft(
-            to=contact_email,
-            subject=followup_msg.subject,
-            body=followup_msg.body,
-        )
-
     if outreach_id:
-        fu = create_followup(
+        create_followup(
             db=db,
             outreach_id=outreach_id,
             application_id=application_id,
             message_body=followup_msg.body,
             followup_number=followup_number,
-            gmail_draft_id=gmail_draft_id,
         )
 
     if followup_number == 2:
@@ -389,7 +370,6 @@ async def process_followup(
         "followup_number": followup_number,
         "subject": followup_msg.subject,
         "body": followup_msg.body,
-        "gmail_draft_id": gmail_draft_id,
         "status": "no_response" if followup_number == 2 else "applied",
     }
 
@@ -426,7 +406,7 @@ def export_csv(db: Session = Depends(get_db)):
 
 # ─── POST /api/resumes/upload ────────────────────────────────────────────────
 
-@app.post("/api/resumes/upload", tags=["Resumes"])
+@app.post("/api/resumes/upload", tags=["Resumes"], dependencies=_AUTH)
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Upload a PDF resume. Text and embedding are stored in the database so they
