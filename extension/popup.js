@@ -92,7 +92,13 @@ async function scrapeCurrentTab() {
 
     scrapedData = response.data;
     displayPreview(scrapedData, tab);
-    setStatus("idle", "Ready to process");
+
+    const textLen = (scrapedData.raw_text || "").length;
+    if (textLen < 500) {
+      setStatus("scraping", `Short page text (${textLen} chars) — scroll down or wait, then re-scan`);
+    } else {
+      setStatus("idle", "Ready to process");
+    }
     processBtn.disabled = false;
 
   } catch (err) {
@@ -184,8 +190,9 @@ function displayResult(result) {
   if (result.job_title) jobTitle.textContent  = result.job_title;
   if (result.company)   jobCompany.textContent = result.company;
 
-  // Best contact found
+  // Contact found
   const contacts = result.contacts_found || [];
+  contactRow.style.display = "";
   if (contacts.length) {
     const best = contacts[0];
     const verified = best.verified ? " ✓" : "";
@@ -196,7 +203,9 @@ function displayResult(result) {
       resContact.classList.add("link");
       resContact.onclick = () => chrome.tabs.create({ url: best.linkedin_url });
     }
-    contactRow.style.display = "";
+  } else {
+    resContact.textContent = "None found — check HUNTER_API_KEY";
+    resContact.style.color = "#555";
   }
 
   // Matched / missing skill pills
