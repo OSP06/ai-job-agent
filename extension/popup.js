@@ -45,15 +45,29 @@ const missingPills      = document.getElementById("missingPills");
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  chrome.storage.local.get(["backendUrl"], (result) => {
-    backendUrl = result.backendUrl || DEFAULT_BACKEND;
-    backendUrlInput.value = backendUrl;
-    scrapeCurrentTab();
+  // Restore last result if the popup was closed by opening a tab (e.g. LinkedIn click)
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    chrome.storage.local.get(["backendUrl", "lastResult"], (stored) => {
+      backendUrl = stored.backendUrl || DEFAULT_BACKEND;
+      backendUrlInput.value = backendUrl;
+
+      if (stored.lastResult && stored.lastResult.url === tab.url) {
+        // Restore without re-scanning
+        scrapedData = { url: tab.url, raw_text: "" };
+        displayPreview({ url: tab.url }, tab);
+        displayResult(stored.lastResult.result);
+        setStatus("success", "Done ✓");
+        processBtn.disabled = false;
+      } else {
+        scrapeCurrentTab();
+      }
+    });
   });
 
   processBtn.addEventListener("click", handleProcess);
 
   refreshBtn.addEventListener("click", () => {
+    chrome.storage.local.remove("lastResult");
     resetResult();
     scrapeCurrentTab();
   });
@@ -146,6 +160,8 @@ async function handleProcess() {
     const result = await resp.json();
     displayResult(result);
     setStatus("success", "Done ✓");
+    // Persist so popup can restore if closed by a tab-open (e.g. LinkedIn click)
+    chrome.storage.local.set({ lastResult: { url: scrapedData.url, result } });
 
   } catch (err) {
     setStatus("error", `Error: ${err.message}`);
