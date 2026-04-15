@@ -17,14 +17,11 @@ import io
 import json
 from contextlib import asynccontextmanager
 from datetime import date
-from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
-from fastapi import Request
 from sqlalchemy.orm import Session
 
 from backend.agents.followup_scheduler import start_scheduler, stop_scheduler
@@ -81,9 +78,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-
 
 # ─── POST /api/jobs/process ───────────────────────────────────────────────────
 
