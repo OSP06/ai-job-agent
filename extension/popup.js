@@ -302,7 +302,7 @@ function displayResult(result) {
     });
   } else {
     contactsContainer.innerHTML =
-      `<div class="no-contacts">None found — check HUNTER_API_KEY in Render</div>`;
+      `<div class="no-contacts">No contacts found for this company</div>`;
   }
 
   // ── Skills ──
