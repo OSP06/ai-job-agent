@@ -5,120 +5,354 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>AI Job Agent — Dashboard</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d0d12;color:#e0e0e8;padding:24px;font-size:13px}
-    h1{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-0.02em}
-    .sub{font-size:12px;color:#44445a;margin-bottom:20px}
-    .stats{background:#12121a;border:1px solid #1c1c28;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px}
-    .actions{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-    .btn{background:#12121a;border:1px solid #1c1c28;color:#9090a8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;text-decoration:none;transition:color .15s,border-color .15s}
-    .btn:hover{color:#e0e0e8;border-color:#3a3a50}
-    table{width:100%;border-collapse:collapse}
-    th{background:#0a0a10;color:#44445a;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #1c1c28}
-    td{padding:9px 12px;border-bottom:1px solid #131320;vertical-align:middle}
-    tr:hover td{background:#0f0f18}
-    .score{font-weight:600}
-    .score-high{color:#22c55e}
-    .score-mid{color:#f59e0b}
-    .score-low{color:#ef4444}
-    .score-none{color:#44445a}
-    select{background:#1a1a28;border:1px solid #252535;color:#c0c0d4;padding:3px 6px;border-radius:5px;font-size:11px;cursor:pointer}
-    .company{color:#e0e0e8;font-weight:500}
-    .role{color:#9090a8;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .id{color:#44445a}
-    .date{color:#6a6a80}
-    .resume{color:#6a6a80}
-    .link{color:#5b8dee;text-decoration:none}
-    .link:hover{text-decoration:underline}
-    .toast{position:fixed;bottom:20px;right:20px;background:#22c55e;color:#000;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none}
-    .toast.show{opacity:1}
-    .empty{color:#44445a;padding:40px;text-align:center}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --accent:    #6366f1;
+      --accent-lt: #818cf8;
+      --green:     #10b981;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+      --text-1:    #f1f5f9;
+      --text-2:    #94a3b8;
+      --text-3:    #475569;
+      --s1:        rgba(255,255,255,0.07);
+      --s2:        rgba(255,255,255,0.04);
+      --bdr:       rgba(255,255,255,0.09);
+      --bdr-h:     rgba(255,255,255,0.16);
+      --ease:      cubic-bezier(0.4,0,0.2,1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(160deg, #0e0e20 0%, #080812 100%);
+      color: var(--text-1);
+      min-height: 100vh;
+      padding: 32px 24px 48px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Page wrapper ─────────────────────────────────── */
+    .page { max-width: 1060px; margin: 0 auto; }
+
+    /* ── Header ───────────────────────────────────────── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px; flex-wrap: wrap; gap: 14px;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 40px; height: 40px; border-radius: 11px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 18px rgba(99,102,241,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .header-icon svg { width: 20px; height: 20px; }
+    .header-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; }
+    .header-sub   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+    /* ── Action buttons ───────────────────────────────── */
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--s1); border: 1px solid var(--bdr);
+      color: var(--text-2); padding: 7px 14px;
+      border-radius: 8px; font-size: 12px; font-weight: 500;
+      font-family: inherit; cursor: pointer; text-decoration: none;
+      transition: all 0.15s var(--ease);
+    }
+    .btn:hover { background: rgba(255,255,255,0.1); border-color: var(--bdr-h); color: var(--text-1); }
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #6366f1);
+      border-color: transparent; color: #fff; font-weight: 600;
+      box-shadow: 0 2px 12px rgba(99,102,241,0.4);
+    }
+    .btn-primary:hover { box-shadow: 0 4px 18px rgba(99,102,241,0.55); color: #fff; }
+
+    /* ── Stats strip ──────────────────────────────────── */
+    .stats-strip {
+      display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .stat-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 11.5px; font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer; transition: all 0.15s var(--ease);
+    }
+    .stat-chip:hover { filter: brightness(1.15); }
+    .stat-chip.active { box-shadow: 0 0 0 2px currentColor; }
+    .stat-chip.all    { background: var(--s1); color: var(--text-2); border-color: var(--bdr); }
+    .stat-chip.captured     { background: rgba(99,102,241,0.14); color: #818cf8; border-color: rgba(99,102,241,0.28); }
+    .stat-chip.applied      { background: rgba(99,102,241,0.2);  color: #a5b4fc; border-color: rgba(99,102,241,0.36); }
+    .stat-chip.interviewing { background: rgba(245,158,11,0.15); color: #fcd34d; border-color: rgba(245,158,11,0.3); }
+    .stat-chip.offer        { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3); }
+    .stat-chip.rejected     { background: rgba(239,68,68,0.13);  color: #fca5a5; border-color: rgba(239,68,68,0.28); }
+    .stat-chip.no_response  { background: rgba(71,85,105,0.25);  color: #64748b; border-color: rgba(71,85,105,0.4); }
+    .stat-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    }
+
+    /* ── Table card ───────────────────────────────────── */
+    .table-card {
+      background: var(--s1);
+      border: 1px solid var(--bdr);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      background: rgba(0,0,0,0.25);
+      color: var(--text-3);
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.09em; text-transform: uppercase;
+      padding: 11px 16px; text-align: left;
+      border-bottom: 1px solid var(--bdr);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.12s var(--ease);
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.04); }
+
+    td {
+      padding: 11px 16px; vertical-align: middle;
+      font-size: 12.5px;
+    }
+
+    .td-id     { color: var(--text-3); font-size: 11px; font-variant-numeric: tabular-nums; width: 40px; }
+    .td-co     { color: var(--text-1); font-weight: 600; max-width: 140px; }
+    .td-role   { color: var(--text-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .td-date   { color: var(--text-3); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .td-resume { color: var(--text-3); font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Score badge */
+    .score-badge {
+      display: inline-block;
+      padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .score-high { background: rgba(16,185,129,0.14);  color: #34d399; border-color: rgba(16,185,129,0.28); }
+    .score-mid  { background: rgba(245,158,11,0.13);  color: #fcd34d; border-color: rgba(245,158,11,0.28); }
+    .score-low  { background: rgba(239,68,68,0.12);   color: #fca5a5; border-color: rgba(239,68,68,0.25); }
+    .score-none { background: var(--s2); color: var(--text-3); border-color: var(--bdr); }
+
+    /* Status select */
+    .status-select {
+      appearance: none; -webkit-appearance: none;
+      background: var(--s2); border: 1px solid var(--bdr);
+      color: var(--text-2); padding: 4px 22px 4px 9px;
+      border-radius: 7px; font-size: 11px; font-weight: 500;
+      font-family: inherit; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23475569' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 7px center;
+      transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+      outline: none;
+    }
+    .status-select:hover { border-color: var(--bdr-h); color: var(--text-1); }
+    .status-select:focus { border-color: var(--accent); }
+
+    /* Job link */
+    .job-link {
+      color: rgba(129,140,248,0.7); text-decoration: none; font-size: 12px;
+      margin-left: 4px; transition: color 0.12s;
+    }
+    .job-link:hover { color: var(--accent-lt); }
+
+    /* Empty state */
+    .empty-state {
+      padding: 64px 24px; text-align: center;
+    }
+    .empty-icon {
+      width: 48px; height: 48px; border-radius: 14px; margin: 0 auto 16px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 18px rgba(99,102,241,0.4);
+    }
+    .empty-icon svg { width: 24px; height: 24px; }
+    .empty-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .empty-sub   { font-size: 12.5px; color: var(--text-3); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 9px 16px; border-radius: 9px;
+      font-size: 12px; font-weight: 600;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+      transform: translateY(6px);
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok  { background: rgba(16,185,129,0.9);  color: #fff; }
+    .toast.err { background: rgba(239,68,68,0.9);   color: #fff; }
+
+    /* Filter highlight */
+    tr.hidden-row { display: none; }
   </style>
 </head>
 <body>
-  <h1>🤖 AI Job Agent</h1>
-  <div class="sub">Application tracker — {{ total }} total</div>
+<div class="page">
 
-  <div class="stats">
-    {% if stats %}
-      {% for status, count in stats.items() %}{% if count > 0 %}<span style="color:{{ status_colors[status] }};margin-right:16px">{{ count }} {{ status }}</span>{% endif %}{% endfor %}
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M10 2C10 6.6 6.6 10 2 10C6.6 10 10 13.4 10 18C10 13.4 13.4 10 18 10C13.4 10 10 6.6 10 2Z"
+                fill="white" opacity="0.95"/>
+          <circle cx="16" cy="4" r="1.3" fill="white" opacity="0.55"/>
+        </svg>
+      </div>
+      <div>
+        <div class="header-title">AI Job Agent</div>
+        <div class="header-sub">{{ total }} application{{ 's' if total != 1 else '' }} tracked</div>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="/api/export/csv">↓ Export CSV</a>
+      <a class="btn" href="/api/resumes/gaps" target="_blank">Skill gaps</a>
+      <a class="btn btn-primary" href="/docs" target="_blank">API docs</a>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <button class="stat-chip all active" onclick="filterStatus('all')">
+      <span class="stat-dot"></span>
+      All <strong>{{ total }}</strong>
+    </button>
+    {% for status, count in stats.items() %}{% if count > 0 %}
+    <button class="stat-chip {{ status }}" onclick="filterStatus('{{ status }}')">
+      <span class="stat-dot"></span>
+      {{ status.replace('_', ' ').title() }} <strong>{{ count }}</strong>
+    </button>
+    {% endif %}{% endfor %}
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    {% if apps %}
+    <table id="appsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Company</th>
+          <th>Role</th>
+          <th>Score</th>
+          <th>Resume</th>
+          <th>Status</th>
+          <th>Applied</th>
+          <th>Captured</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for app in apps %}
+        <tr data-status="{{ app.status }}">
+          <td class="td-id">{{ app.id }}</td>
+          <td class="td-co">{{ app.company or "—" }}</td>
+          <td>
+            <span class="td-role">{{ app.job_title or "—" }}</span>
+            {% if app.url %}
+            <a href="{{ app.url }}" target="_blank" class="job-link" title="{{ app.url }}">↗</a>
+            {% endif %}
+          </td>
+          <td>
+            <span class="score-badge {{ app.score_class }}">{{ app.score_display }}</span>
+          </td>
+          <td class="td-resume">{{ app.resume_used or "—" }}</td>
+          <td>
+            <select class="status-select" onchange="updateStatus({{ app.id }}, this.value)">
+              {% for status in statuses %}
+              <option value="{{ status }}" {% if app.status == status %}selected{% endif %}>
+                {{ status.replace('_', ' ').title() }}
+              </option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="td-date">{{ app.applied_date }}</td>
+          <td class="td-date">{{ app.created_date }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% else %}
-      No applications yet
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M10 2C10 6.6 6.6 10 2 10C6.6 10 10 13.4 10 18C10 13.4 13.4 10 18 10C13.4 10 10 6.6 10 2Z"
+                fill="white" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="empty-title">No applications yet</div>
+      <div class="empty-sub">Open a job posting and click Capture &amp; Process in the extension.</div>
+    </div>
     {% endif %}
   </div>
 
-  <div class="actions">
-    <a class="btn" href="/api/export/csv">⬇ Export CSV</a>
-    <a class="btn" href="/api/resumes/gaps" target="_blank">🔍 Resume Gaps</a>
-    <a class="btn" href="/docs" target="_blank">📖 API Docs</a>
-  </div>
+</div>
 
-  {% if apps %}
-  <table>
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Company</th>
-        <th>Role</th>
-        <th>Score</th>
-        <th>Resume</th>
-        <th>Status</th>
-        <th>Applied</th>
-        <th>Captured</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for app in apps %}
-      <tr>
-        <td class="id">{{ app.id }}</td>
-        <td class="company">{{ app.company or "—" }}</td>
-        <td>
-          <span class="role">{{ app.job_title or "—" }}</span>
-          {% if app.url %}
-          <a href="{{ app.url }}" target="_blank" class="link" style="margin-left:4px">↗</a>
-          {% endif %}
-        </td>
-        <td>
-          <span class="score {{ app.score_class }}">{{ app.score_display }}</span>
-        </td>
-        <td class="resume">{{ app.resume_used or "—" }}</td>
-        <td>
-          <select onchange="updateStatus({{ app.id }}, this.value)">
-            {% for status in statuses %}
-            <option value="{{ status }}" {% if app.status == status %}selected{% endif %}>{{ status }}</option>
-            {% endfor %}
-          </select>
-        </td>
-        <td class="date">{{ app.applied_date or "—" }}</td>
-        <td class="date">{{ app.created_date }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="empty">No applications yet. Use the Chrome extension to capture your first job.</div>
-  {% endif %}
+<div class="toast" id="toast"></div>
 
-  <div class="toast" id="toast"></div>
+<script>
+  const BASE = window.location.origin;
 
-  <script>
-    const BASE = window.location.origin;
-    async function updateStatus(id, status) {
-      try {
-        const r = await fetch(`${BASE}/api/applications/${id}/status?status=${status}`, {method:"PATCH"});
-        if (!r.ok) throw new Error();
-        showToast(`#${id} → ${status}`);
-      } catch {
-        showToast("Update failed", true);
+  async function updateStatus(id, status) {
+    try {
+      const r = await fetch(`${BASE}/api/applications/${id}/status?status=${encodeURIComponent(status)}`, { method: "PATCH" });
+      if (!r.ok) throw new Error();
+      showToast(`#${id} → ${status.replace('_',' ')}`, false);
+      // update row attribute for filter
+      const row = document.querySelector(`tr[data-status]`);
+      document.querySelectorAll(`#appsTable tbody tr`).forEach(tr => {
+        const sel = tr.querySelector('.status-select');
+        if (sel && sel.value === status && sel.closest('tr') === tr) return;
+      });
+      // re-tag the row so filter works after status change
+      document.querySelectorAll('#appsTable tbody tr').forEach(tr => {
+        const sel = tr.querySelector('.status-select');
+        if (sel) {
+          const opts = Array.from(sel.options);
+          const chosen = opts.find(o => o.selected);
+          if (chosen) tr.dataset.status = chosen.value;
+        }
+      });
+    } catch {
+      showToast("Update failed", true);
+    }
+  }
+
+  function filterStatus(status) {
+    // Update chip active state
+    document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.stat-chip.${status === 'all' ? 'all' : status}`)?.classList.add('active');
+
+    // Show/hide rows
+    document.querySelectorAll('#appsTable tbody tr').forEach(tr => {
+      if (status === 'all' || tr.dataset.status === status) {
+        tr.classList.remove('hidden-row');
+      } else {
+        tr.classList.add('hidden-row');
       }
-    }
-    function showToast(msg, err=false) {
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      t.style.background = err ? "#ef4444" : "#22c55e";
-      t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), 2000);
-    }
-  </script>
+    });
+  }
+
+  function showToast(msg, err = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${err ? 'err' : 'ok'} show`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+</script>
 </body>
 </html>

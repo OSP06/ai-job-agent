@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("appsLink").addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${backendUrl}/api/applications` });
+    chrome.tabs.create({ url: `${backendUrl}/dashboard` });
   });
 });
 
