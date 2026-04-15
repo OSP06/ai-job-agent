@@ -208,6 +208,8 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         ],
         outreach_generated=outreach_msg is not None,
         outreach_skipped_reason=skip_reason,
+        outreach_subject=outreach_msg.subject if outreach_msg else None,
+        outreach_body=outreach_msg.body if outreach_msg else None,
         gmail_draft_id=gmail_draft_id,
         message=(
             f"Application captured. Match score: {score:.0%}. "

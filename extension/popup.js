@@ -5,36 +5,43 @@
 const DEFAULT_BACKEND = "https://ai-job-agent-8zrr.onrender.com";
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let scrapedData = null;
-let backendUrl  = DEFAULT_BACKEND;
+let scrapedData      = null;
+let backendUrl       = DEFAULT_BACKEND;
+let outreachExpanded = false;
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
-const jobCard         = document.getElementById("jobCard");
-const jobTitle        = document.getElementById("jobTitle");
-const jobCompany      = document.getElementById("jobCompany");
-const jobUrl          = document.getElementById("jobUrl");
-const statusBadge     = document.getElementById("statusBadge");
-const statusText      = document.getElementById("statusText");
-const processBtn      = document.getElementById("processBtn");
-const refreshBtn      = document.getElementById("refreshBtn");
-const resultBox       = document.getElementById("resultBox");
-const resScore        = document.getElementById("resScore");
-const resResume       = document.getElementById("resResume");
-const resOutreach     = document.getElementById("resOutreach");
-const resDraft        = document.getElementById("resDraft");
-const resAppLink      = document.getElementById("resAppLink");
-const scoresDivider   = document.getElementById("scoresDivider");
-const scoresSection   = document.getElementById("scoresSection");
-const scoresBars      = document.getElementById("scoresBars");
+const jobCard           = document.getElementById("jobCard");
+const jobTitle          = document.getElementById("jobTitle");
+const jobCompany        = document.getElementById("jobCompany");
+const jobUrl            = document.getElementById("jobUrl");
+const statusBadge       = document.getElementById("statusBadge");
+const statusText        = document.getElementById("statusText");
+const processBtn        = document.getElementById("processBtn");
+const refreshBtn        = document.getElementById("refreshBtn");
+const resultBox         = document.getElementById("resultBox");
+const resScore          = document.getElementById("resScore");
+const resResume         = document.getElementById("resResume");
+const resOutreach       = document.getElementById("resOutreach");
+const resDraft          = document.getElementById("resDraft");
+const resAppLink        = document.getElementById("resAppLink");
+const outreachPanel     = document.getElementById("outreachPanel");
+const emailSubject      = document.getElementById("emailSubject");
+const emailBody         = document.getElementById("emailBody");
+const copyBtn           = document.getElementById("copyBtn");
+const scoresDivider     = document.getElementById("scoresDivider");
+const scoresSection     = document.getElementById("scoresSection");
+const scoresBars        = document.getElementById("scoresBars");
+const contactDivider    = document.getElementById("contactDivider");
+const contactsSection   = document.getElementById("contactsSection");
 const contactsContainer = document.getElementById("contactsContainer");
-const backendUrlInput = document.getElementById("backendUrlInput");
-const saveUrlBtn      = document.getElementById("saveUrlBtn");
-const skillsDivider   = document.getElementById("skillsDivider");
-const skillsSection   = document.getElementById("skillsSection");
-const matchedSection  = document.getElementById("matchedSection");
-const missingSection  = document.getElementById("missingSection");
-const matchedPills    = document.getElementById("matchedPills");
-const missingPills    = document.getElementById("missingPills");
+const backendUrlInput   = document.getElementById("backendUrlInput");
+const saveUrlBtn        = document.getElementById("saveUrlBtn");
+const skillsDivider     = document.getElementById("skillsDivider");
+const skillsSection     = document.getElementById("skillsSection");
+const matchedSection    = document.getElementById("matchedSection");
+const missingSection    = document.getElementById("missingSection");
+const matchedPills      = document.getElementById("matchedPills");
+const missingPills      = document.getElementById("missingPills");
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -110,9 +117,9 @@ async function scrapeCurrentTab() {
 function displayPreview(data, tab) {
   jobCard.classList.remove("empty");
   const parts = (tab.title || "").split(/[-|–—@·]/);
-  jobTitle.textContent  = parts[0]?.trim() || "Job Posting";
+  jobTitle.textContent   = parts[0]?.trim() || "Job Posting";
   jobCompany.textContent = parts[1]?.trim() || "";
-  jobUrl.textContent    = data.url;
+  jobUrl.textContent     = data.url;
 }
 
 // ─── Process ──────────────────────────────────────────────────────────────────
@@ -120,8 +127,8 @@ async function handleProcess() {
   if (!scrapedData) return;
 
   setStatus("processing", "Processing… (10–30s)");
-  processBtn.disabled  = true;
-  refreshBtn.disabled  = true;
+  processBtn.disabled = true;
+  refreshBtn.disabled = true;
   resetResult();
 
   try {
@@ -150,33 +157,54 @@ async function handleProcess() {
 
 // ─── Display result ───────────────────────────────────────────────────────────
 function displayResult(result) {
-  const score    = result.match_score;
-  const scorePct = pct(score);
+  const score     = result.match_score;
+  const scorePct  = pct(score);
+  const threshold = parseThreshold(result.outreach_skipped_reason) ?? 0.5;
 
-  // Determine threshold from the skip reason if available, else assume 0.9
-  const threshold = parseThreshold(result.outreach_skipped_reason) ?? 0.9;
-
-  // Score pill with colour based on real threshold
+  // ── Score hero ──
   resScore.textContent = scorePct;
-  resScore.className   = "value " + scoreClass(score, threshold);
-
-  // Resume used
+  resScore.className   = "score-number " + scoreClass(score, threshold);
   resResume.textContent = result.resume_used || "—";
 
-  // Outreach
+  // Update job card accent colour
+  jobCard.className = "job-card " + scoreClass(score, threshold);
+  jobCard.classList.remove("empty");
+  if (result.job_title) jobTitle.textContent   = result.job_title;
+  if (result.company)   jobCompany.textContent = result.company;
+
+  // ── Outreach ──
   if (result.outreach_generated) {
-    resOutreach.textContent  = "Generated ✓";
-    resOutreach.style.color  = "#4caf50";
+    const hasContent = result.outreach_subject || result.outreach_body;
+    if (hasContent) {
+      resOutreach.textContent = "View email ↓";
+      resOutreach.className   = "value clickable";
+      emailSubject.textContent = result.outreach_subject || "";
+      emailBody.textContent    = result.outreach_body    || "";
+      resOutreach.onclick = () => {
+        outreachExpanded = !outreachExpanded;
+        outreachPanel.style.display = outreachExpanded ? "block" : "none";
+        resOutreach.textContent = outreachExpanded ? "Hide email ↑" : "View email ↓";
+      };
+    } else {
+      resOutreach.textContent = "Generated ✓";
+      resOutreach.className   = "value success";
+    }
   } else {
     resOutreach.textContent = result.outreach_skipped_reason || `Skipped (${scorePct})`;
-    resOutreach.style.color = "#888";
+    resOutreach.className   = "value muted";
   }
 
-  // Gmail draft
-  resDraft.textContent = result.gmail_draft_id ? "Created ✓" : "Not created";
-  resDraft.style.color = result.gmail_draft_id ? "#4caf50" : "#666";
+  // ── Gmail draft ──
+  if (result.gmail_draft_id) {
+    resDraft.textContent = "Created ✓ — Open →";
+    resDraft.className   = "value clickable";
+    resDraft.onclick     = () => chrome.tabs.create({ url: "https://mail.google.com/mail/u/0/#drafts" });
+  } else {
+    resDraft.textContent = "Not created";
+    resDraft.className   = "value muted";
+  }
 
-  // Application link
+  // ── Application link ──
   if (result.application_id) {
     resAppLink.textContent = `#${result.application_id} — view →`;
     resAppLink.onclick = () => chrome.tabs.create({
@@ -184,38 +212,47 @@ function displayResult(result) {
     });
   }
 
-  // Update job card with parsed data
-  jobCard.classList.remove("empty");
-  if (result.job_title) jobTitle.textContent  = result.job_title;
-  if (result.company)   jobCompany.textContent = result.company;
+  // ── Copy button ──
+  copyBtn.onclick = () => {
+    const text = `Subject: ${emailSubject.textContent}\n\n${emailBody.textContent}`;
+    navigator.clipboard.writeText(text).then(() => {
+      copyBtn.textContent = "Copied ✓";
+      setTimeout(() => { copyBtn.textContent = "Copy email"; }, 2000);
+    });
+  };
 
-  // Contacts (up to 3)
+  // ── Contacts ──
   const contacts = result.contacts_found || [];
-  contactsContainer.innerHTML = "";
+  contactDivider.style.display  = "";
+  contactsSection.style.display = "";
+  contactsContainer.innerHTML   = "";
+
   if (contacts.length) {
     contacts.slice(0, 3).forEach((c) => {
-      const verified = c.verified ? " ✓" : "";
-      const label = [c.name, c.title].filter(Boolean).join(" · ");
-      const display = (label || c.email || "—") + verified;
-      const color = c.verified ? "#4caf50" : "#aaa";
+      const initials = getInitials(c.name);
+      const hasLink  = !!c.linkedin_url;
+      const nameHtml = escHtml(c.name || "Unknown")
+        + (c.verified ? ' <span class="check">✓</span>' : "");
 
-      const row = document.createElement("div");
-      row.className = "result-row";
-      row.innerHTML = `<span class="label">Contact</span><span class="value" style="color:${color}">${display}</span>`;
+      const card = document.createElement("div");
+      card.className = `contact-card${hasLink ? " has-link" : ""}`;
+      card.innerHTML = `
+        <div class="contact-avatar${c.verified ? " verified" : ""}">${escHtml(initials)}</div>
+        <div class="contact-details">
+          <div class="contact-name">${nameHtml}</div>
+          ${c.title ? `<div class="contact-role">${escHtml(c.title)}</div>` : ""}
+        </div>
+        ${hasLink ? '<div class="contact-arrow">↗</div>' : ""}`;
 
-      if (c.linkedin_url) {
-        const val = row.querySelector(".value");
-        val.classList.add("link");
-        val.style.color = color;
-        val.onclick = () => chrome.tabs.create({ url: c.linkedin_url });
-      }
-      contactsContainer.appendChild(row);
+      if (hasLink) card.onclick = () => chrome.tabs.create({ url: c.linkedin_url });
+      contactsContainer.appendChild(card);
     });
   } else {
-    contactsContainer.innerHTML = `<div class="result-row"><span class="label">Contact</span><span class="value" style="color:#555">None found — check HUNTER_API_KEY</span></div>`;
+    contactsContainer.innerHTML =
+      `<div class="no-contacts">None found — check HUNTER_API_KEY in Render</div>`;
   }
 
-  // Matched / missing skill pills
+  // ── Skills ──
   const matched = result.matched_skills || [];
   const missing = result.missing_skills || [];
   if (matched.length || missing.length) {
@@ -224,16 +261,16 @@ function displayResult(result) {
     if (matched.length) {
       matchedSection.style.display = "";
       matchedPills.innerHTML = matched.slice(0, 8)
-        .map(s => `<span class="pill match">${s}</span>`).join("");
+        .map(s => `<span class="pill match">${escHtml(s)}</span>`).join("");
     }
     if (missing.length) {
       missingSection.style.display = "";
       missingPills.innerHTML = missing.slice(0, 6)
-        .map(s => `<span class="pill missing">${s}</span>`).join("");
+        .map(s => `<span class="pill missing">${escHtml(s)}</span>`).join("");
     }
   }
 
-  // All resume scores breakdown
+  // ── Resume score bars ──
   const allScores = result.all_resume_scores || {};
   const names = Object.keys(allScores);
   if (names.length > 1) {
@@ -242,21 +279,19 @@ function displayResult(result) {
     scoresBars.innerHTML = "";
 
     const maxScore = Math.max(...Object.values(allScores), 0.01);
-
-    // Sort descending
     names.sort((a, b) => allScores[b] - allScores[a]);
 
     names.forEach((name) => {
-      const s     = allScores[name];
+      const s      = allScores[name];
       const isBest = name === result.resume_used;
-      const barPct  = Math.round((s / maxScore) * 100);
+      const barPct = Math.round((s / maxScore) * 100);
       const fillCls = isBest
         ? (s >= threshold ? "bar-fill best" : "bar-fill low")
         : "bar-fill";
 
       scoresBars.innerHTML += `
         <div class="score-bar-row">
-          <span class="sname ${isBest ? "best" : ""}">${name}</span>
+          <span class="sname${isBest ? " best" : ""}">${escHtml(name)}</span>
           <div class="bar-track"><div class="${fillCls}" style="width:${barPct}%"></div></div>
           <span class="spct">${pct(s)}</span>
         </div>`;
@@ -281,6 +316,18 @@ function parseThreshold(reason) {
   return m ? parseFloat(m[1]) / 100 : null;
 }
 
+function getInitials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
+
+function escHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function setStatus(type, text) {
   statusBadge.className = `badge ${type}`;
   statusText.textContent = text;
@@ -290,21 +337,38 @@ function setStatus(type, text) {
 
 function resetResult() {
   resultBox.classList.remove("visible");
+  outreachExpanded = false;
+  outreachPanel.style.display = "none";
+
+  resScore.textContent  = "—";
+  resScore.className    = "score-number";
+  resResume.textContent = "—";
+
+  resOutreach.textContent = "—";
+  resOutreach.className   = "value";
+  resOutreach.onclick     = null;
+
+  resDraft.textContent = "—";
+  resDraft.className   = "value";
+  resDraft.onclick     = null;
+
+  resAppLink.textContent = "—";
+  resAppLink.onclick     = null;
+
+  contactDivider.style.display  = "none";
+  contactsSection.style.display = "none";
+  contactsContainer.innerHTML   = "";
+
   skillsDivider.style.display = "none";
   skillsSection.style.display = "none";
   matchedSection.style.display = "none";
   missingSection.style.display = "none";
   matchedPills.innerHTML = "";
   missingPills.innerHTML = "";
+
   scoresDivider.style.display = "none";
   scoresSection.style.display = "none";
   scoresBars.innerHTML = "";
-  [resScore, resResume, resOutreach, resDraft].forEach((el) => {
-    el.textContent = "—";
-    el.className   = "value";
-    el.style.color = "";
-  });
-  resAppLink.textContent = "—";
-  resAppLink.onclick     = null;
-  contactsContainer.innerHTML = "";
+
+  jobCard.className = "job-card";
 }

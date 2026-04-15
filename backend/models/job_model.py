@@ -148,5 +148,7 @@ class ProcessJobResponse(BaseModel):
     contacts_found: list[dict] = Field(default_factory=list)
     outreach_generated: bool
     outreach_skipped_reason: Optional[str] = None
+    outreach_subject: Optional[str] = None
+    outreach_body: Optional[str] = None
     gmail_draft_id: Optional[str] = None
     message: str
