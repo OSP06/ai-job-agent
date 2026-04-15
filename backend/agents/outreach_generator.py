@@ -16,10 +16,14 @@ from backend.utils.logger import logger
 _client: anthropic.Anthropic | None = None
 
 
-def _get_client() -> anthropic.Anthropic:
+def _get_client() -> anthropic.Anthropic | None:
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        key = settings.anthropic_api_key
+        if not key:
+            logger.warning("ANTHROPIC_API_KEY is not set — outreach generation disabled")
+            return None
+        _client = anthropic.Anthropic(api_key=key)
     return _client
 
 
