@@ -14,17 +14,26 @@ from backend.config import settings
 from backend.models.job_model import JobData, OutreachMessage, ResumeMatch
 from backend.utils.logger import logger
 
-_client: OpenAI | None = None
+_client: tuple | None = None   # (OpenAI instance, model name)
 
 
-def _get_client() -> OpenAI | None:
+def _get_client() -> tuple | None:
     global _client
     if _client is None:
-        key = settings.openai_api_key
-        if not key:
-            logger.warning("OPENAI_API_KEY is not set — outreach generation disabled")
-            return None
-        _client = OpenAI(api_key=key)
+        if settings.groq_api_key:
+            _client = (
+                OpenAI(api_key=settings.groq_api_key,
+                       base_url="https://api.groq.com/openai/v1"),
+                "llama-3.1-8b-instant",
+            )
+            logger.info("outreach_generator: using Groq (llama-3.1-8b-instant)")
+        else:
+            key = settings.openai_api_key
+            if not key:
+                logger.warning("No AI provider configured — outreach generation disabled")
+                return None
+            _client = (OpenAI(api_key=key), "gpt-4o-mini")
+            logger.info("outreach_generator: using OpenAI (gpt-4o-mini)")
     return _client
 
 
@@ -85,9 +94,10 @@ def generate_outreach(
         logger.info(skip_reason)
         return None, skip_reason
 
-    client = _get_client()
-    if not client:
-        return None, "OPENAI_API_KEY not configured"
+    result = _get_client()
+    if not result:
+        return None, "No AI provider configured (set OPENAI_API_KEY or GROQ_API_KEY)"
+    client, model = result
 
     logger.info(f"Generating outreach for {job.title} @ {job.company}")
 
@@ -102,7 +112,7 @@ My resume highlights (matched resume: {resume_match.resume_name}):
 Write the cold email."""
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": OUTREACH_SYSTEM},
@@ -131,9 +141,10 @@ def generate_followup(
         1 = day-7 follow-up
         2 = day-14 final follow-up (after this → mark no_response)
     """
-    client = _get_client()
-    if not client:
-        raise RuntimeError("OPENAI_API_KEY not configured — cannot generate follow-up")
+    result = _get_client()
+    if not result:
+        raise RuntimeError("No AI provider configured — set OPENAI_API_KEY or GROQ_API_KEY")
+    client, model = result
 
     label = "first follow-up (Day 7)" if followup_number == 1 else "final follow-up (Day 14)"
     logger.info(f"Generating {label} for {job.title} @ {job.company}")
@@ -155,7 +166,7 @@ Write the follow-up email.
 After this (follow-up 2), I will stop reaching out and mark the application as no response."""
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": FOLLOWUP_SYSTEM},

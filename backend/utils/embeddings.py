@@ -2,7 +2,9 @@
 embeddings.py
 ─────────────
 Uses OpenAI text-embedding-3-small for resume matching.
+Always OpenAI — Groq has no embedding models.
 Avoids local PyTorch/sentence-transformers (~1GB) so the app runs on free hosting tiers.
+Cost: ~$0.013/month at 900 jobs/month (text-embedding-3-small at $0.02/1M tokens).
 """
 
 import math

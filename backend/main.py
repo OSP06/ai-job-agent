@@ -23,6 +23,8 @@ from typing import Optional
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 from sqlalchemy.orm import Session
 
 from backend.agents.followup_scheduler import start_scheduler, stop_scheduler
@@ -79,6 +81,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
 # ─── POST /api/jobs/process ───────────────────────────────────────────────────
@@ -477,132 +481,53 @@ def resume_gaps(db: Session = Depends(get_db)):
 # ─── GET /dashboard ───────────────────────────────────────────────────────────
 
 @app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard"])
-def dashboard(db: Session = Depends(get_db)):
-    """Self-contained HTML dashboard for reviewing and updating applications."""
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    """Application dashboard rendered from backend/templates/dashboard.html."""
     apps = get_applications(db)
 
     STATUS_COLORS = {
-        "captured":     ("#1a1a28", "#8888aa"),
-        "applied":      ("#0d1f3a", "#5b8dee"),
-        "interviewing": ("#1e1a08", "#f59e0b"),
-        "offer":        ("#091c10", "#22c55e"),
-        "rejected":     ("#1a0909", "#ef4444"),
-        "no_response":  ("#111118", "#44445a"),
+        "captured":     "#8888aa",
+        "applied":      "#5b8dee",
+        "interviewing": "#f59e0b",
+        "offer":        "#22c55e",
+        "rejected":     "#ef4444",
+        "no_response":  "#44445a",
     }
+
+    def score_class(s):
+        if s is None: return "score-none"
+        if s >= 0.70: return "score-high"
+        if s >= 0.50: return "score-mid"
+        return "score-low"
 
     stats = {s: 0 for s in STATUS_COLORS}
     for a in apps:
         stats[a.status] = stats.get(a.status, 0) + 1
 
-    def score_color(s):
-        if s is None: return "#44445a"
-        if s >= 0.70: return "#22c55e"
-        if s >= 0.50: return "#f59e0b"
-        return "#ef4444"
+    app_rows = [
+        {
+            "id":           a.id,
+            "company":      a.company,
+            "job_title":    a.job_title,
+            "url":          a.url,
+            "score_display": f"{a.match_score:.0%}" if a.match_score else "—",
+            "score_class":  score_class(a.match_score),
+            "resume_used":  a.resume_used,
+            "status":       a.status,
+            "applied_date": str(a.applied_date) if a.applied_date else "—",
+            "created_date": str(a.created_at)[:10] if a.created_at else "—",
+        }
+        for a in apps
+    ]
 
-    rows_html = ""
-    for a in apps:
-        sc = score_color(a.match_score)
-        score_str = f"{a.match_score:.0%}" if a.match_score else "—"
-        applied_str = str(a.applied_date) if a.applied_date else "—"
-        created_str = str(a.created_at)[:10] if a.created_at else "—"
-        url_link = f'<a href="{a.url}" target="_blank" style="color:#5b8dee;text-decoration:none">↗</a>' if a.url else ""
-
-        options = ""
-        for s, (bg, fg) in STATUS_COLORS.items():
-            sel = "selected" if a.status == s else ""
-            options += f'<option value="{s}" {sel}>{s}</option>'
-
-        rows_html += f"""
-        <tr>
-          <td style="color:#44445a">{a.id}</td>
-          <td><strong style="color:#e0e0e8">{a.company or "—"}</strong></td>
-          <td style="color:#9090a8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{a.job_title or "—"} {url_link}</td>
-          <td style="color:{sc};font-weight:600">{score_str}</td>
-          <td style="color:#6a6a80">{a.resume_used or "—"}</td>
-          <td>
-            <select onchange="updateStatus({a.id}, this.value)" style="background:#1a1a28;border:1px solid #252535;color:#c0c0d4;padding:3px 6px;border-radius:5px;font-size:11px;cursor:pointer">
-              {options}
-            </select>
-          </td>
-          <td style="color:#6a6a80">{applied_str}</td>
-          <td style="color:#44445a">{created_str}</td>
-        </tr>"""
-
-    stats_html = " &nbsp;·&nbsp; ".join(
-        f'<span style="color:{STATUS_COLORS.get(s, ("#0","#888"))[1]}">{v} {s}</span>'
-        for s, v in stats.items() if v > 0
-    )
-
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>AI Job Agent — Dashboard</title>
-  <style>
-    *{{box-sizing:border-box;margin:0;padding:0}}
-    body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d0d12;color:#e0e0e8;padding:24px;font-size:13px}}
-    h1{{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;letter-spacing:-0.02em}}
-    .sub{{font-size:12px;color:#44445a;margin-bottom:20px}}
-    .stats{{background:#12121a;border:1px solid #1c1c28;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:12px}}
-    .actions{{display:flex;gap:10px;margin-bottom:16px}}
-    .btn{{background:#12121a;border:1px solid #1c1c28;color:#9090a8;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;text-decoration:none;transition:color .15s,border-color .15s}}
-    .btn:hover{{color:#e0e0e8;border-color:#3a3a50}}
-    table{{width:100%;border-collapse:collapse}}
-    th{{background:#0a0a10;color:#44445a;font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:8px 12px;text-align:left;border-bottom:1px solid #1c1c28}}
-    td{{padding:9px 12px;border-bottom:1px solid #131320;vertical-align:middle}}
-    tr:hover td{{background:#0f0f18}}
-    .toast{{position:fixed;bottom:20px;right:20px;background:#22c55e;color:#000;padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none}}
-    .toast.show{{opacity:1}}
-  </style>
-</head>
-<body>
-  <h1>🤖 AI Job Agent</h1>
-  <div class="sub">Application tracker — {len(apps)} total</div>
-
-  <div class="stats">{stats_html if stats_html else "No applications yet"}</div>
-
-  <div class="actions">
-    <a class="btn" href="/api/export/csv">⬇ Export CSV</a>
-    <a class="btn" href="/api/resumes/gaps" target="_blank">🔍 Resume Gaps</a>
-    <a class="btn" href="/docs" target="_blank">📖 API Docs</a>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>#</th><th>Company</th><th>Role</th><th>Score</th>
-        <th>Resume</th><th>Status</th><th>Applied</th><th>Captured</th>
-      </tr>
-    </thead>
-    <tbody>{rows_html}</tbody>
-  </table>
-
-  <div class="toast" id="toast"></div>
-
-  <script>
-    const BASE = window.location.origin;
-    async function updateStatus(id, status) {{
-      try {{
-        const r = await fetch(`${{BASE}}/api/applications/${{id}}/status?status=${{status}}`, {{method:"PATCH"}});
-        if (!r.ok) throw new Error();
-        showToast(`#${{id}} → ${{status}}`);
-      }} catch {{
-        showToast("Update failed", true);
-      }}
-    }}
-    function showToast(msg, err=false) {{
-      const t = document.getElementById("toast");
-      t.textContent = msg;
-      t.style.background = err ? "#ef4444" : "#22c55e";
-      t.classList.add("show");
-      setTimeout(() => t.classList.remove("show"), 2000);
-    }}
-  </script>
-</body>
-</html>"""
-    return HTMLResponse(content=html)
+    return templates.TemplateResponse("dashboard.html", {
+        "request":       request,
+        "apps":          app_rows,
+        "total":         len(apps),
+        "stats":         stats,
+        "status_colors": STATUS_COLORS,
+        "statuses":      list(STATUS_COLORS.keys()),
+    })
 
 
 # ─── Health check ─────────────────────────────────────────────────────────────

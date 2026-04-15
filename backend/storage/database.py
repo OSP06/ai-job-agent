@@ -175,7 +175,7 @@ def create_application(
     salary: Optional[str] = None,
     job_type: Optional[str] = None,
     status: str = "captured",
-    missing_skills: list[str] = [],
+    missing_skills: list[str] | None = None,
 ) -> Application:
     app = Application(
         job_title=job_title,
@@ -189,7 +189,7 @@ def create_application(
         salary=salary,
         job_type=job_type,
         status=status,
-        missing_skills_json=json.dumps(missing_skills),
+        missing_skills_json=json.dumps(missing_skills or []),
     )
     db.add(app)
     db.commit()

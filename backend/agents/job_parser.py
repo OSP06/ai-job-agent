@@ -10,13 +10,22 @@ from backend.config import settings
 from backend.models.job_model import JobData, JobInput
 from backend.utils.logger import logger
 
-_client: OpenAI | None = None
+_client: tuple | None = None   # (OpenAI instance, model name)
 
 
-def _get_client() -> OpenAI:
+def _get_client() -> tuple:
     global _client
     if _client is None:
-        _client = OpenAI(api_key=settings.openai_api_key)
+        if settings.groq_api_key:
+            _client = (
+                OpenAI(api_key=settings.groq_api_key,
+                       base_url="https://api.groq.com/openai/v1"),
+                "llama-3.3-70b-versatile",
+            )
+            logger.info("job_parser: using Groq (llama-3.3-70b-versatile)")
+        else:
+            _client = (OpenAI(api_key=settings.openai_api_key), "gpt-4o")
+            logger.info("job_parser: using OpenAI (gpt-4o)")
     return _client
 
 
@@ -40,15 +49,15 @@ Return ONLY valid JSON. No explanation, no markdown.
 
 
 async def parse_job(job_input: JobInput) -> JobData:
-    """Call GPT-4o to extract structured job data from raw scraped text."""
-    client = _get_client()
+    """Extract structured job data from raw scraped text via Groq or OpenAI."""
+    client, model = _get_client()
 
     user_content = f"URL: {job_input.url}\n\nPAGE TITLE: {job_input.page_title or 'N/A'}\n\nCONTENT:\n{job_input.raw_text[:6000]}"
 
     logger.info(f"Parsing job from {job_input.url}")
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=model,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
