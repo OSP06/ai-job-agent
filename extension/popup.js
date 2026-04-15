@@ -26,8 +26,7 @@ const resAppLink      = document.getElementById("resAppLink");
 const scoresDivider   = document.getElementById("scoresDivider");
 const scoresSection   = document.getElementById("scoresSection");
 const scoresBars      = document.getElementById("scoresBars");
-const contactRow      = document.getElementById("contactRow");
-const resContact      = document.getElementById("resContact");
+const contactsContainer = document.getElementById("contactsContainer");
 const backendUrlInput = document.getElementById("backendUrlInput");
 const saveUrlBtn      = document.getElementById("saveUrlBtn");
 const skillsDivider   = document.getElementById("skillsDivider");
@@ -190,22 +189,30 @@ function displayResult(result) {
   if (result.job_title) jobTitle.textContent  = result.job_title;
   if (result.company)   jobCompany.textContent = result.company;
 
-  // Contact found
+  // Contacts (up to 3)
   const contacts = result.contacts_found || [];
-  contactRow.style.display = "";
+  contactsContainer.innerHTML = "";
   if (contacts.length) {
-    const best = contacts[0];
-    const verified = best.verified ? " ✓" : "";
-    const label = [best.name, best.title].filter(Boolean).join(" · ");
-    resContact.textContent = (label || best.email || "—") + verified;
-    resContact.style.color = best.verified ? "#4caf50" : "#aaa";
-    if (best.linkedin_url) {
-      resContact.classList.add("link");
-      resContact.onclick = () => chrome.tabs.create({ url: best.linkedin_url });
-    }
+    contacts.slice(0, 3).forEach((c) => {
+      const verified = c.verified ? " ✓" : "";
+      const label = [c.name, c.title].filter(Boolean).join(" · ");
+      const display = (label || c.email || "—") + verified;
+      const color = c.verified ? "#4caf50" : "#aaa";
+
+      const row = document.createElement("div");
+      row.className = "result-row";
+      row.innerHTML = `<span class="label">Contact</span><span class="value" style="color:${color}">${display}</span>`;
+
+      if (c.linkedin_url) {
+        const val = row.querySelector(".value");
+        val.classList.add("link");
+        val.style.color = color;
+        val.onclick = () => chrome.tabs.create({ url: c.linkedin_url });
+      }
+      contactsContainer.appendChild(row);
+    });
   } else {
-    resContact.textContent = "None found — check HUNTER_API_KEY";
-    resContact.style.color = "#555";
+    contactsContainer.innerHTML = `<div class="result-row"><span class="label">Contact</span><span class="value" style="color:#555">None found — check HUNTER_API_KEY</span></div>`;
   }
 
   // Matched / missing skill pills
@@ -299,9 +306,5 @@ function resetResult() {
   });
   resAppLink.textContent = "—";
   resAppLink.onclick     = null;
-  contactRow.style.display = "none";
-  resContact.textContent   = "—";
-  resContact.style.color   = "";
-  resContact.classList.remove("link");
-  resContact.onclick = null;
+  contactsContainer.innerHTML = "";
 }

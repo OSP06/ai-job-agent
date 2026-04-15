@@ -29,7 +29,11 @@ Given raw text scraped from a job posting, return a JSON object with these field
 - job_type: string or null (full-time, contract, part-time, etc.)
 - description: string (2–4 sentence summary of the role)
 - requirements: array of strings (key required skills/qualifications, max 10)
-- company_domain: string or null (e.g. "stripe.com" inferred from company name or URL)
+- company_domain: string or null — the HIRING COMPANY's own website domain, inferred from
+  the company name only (e.g. "sofi.com" for "SoFi", "stripe.com" for "Stripe").
+  NEVER use job board / ATS platform domains such as linkedin.com, indeed.com, greenhouse.io,
+  lever.co, tokyodev.com, wellfound.com, workday.com, ashbyhq.com, smartrecruiters.com, etc.
+  If you cannot confidently infer the company's own domain, return null.
 
 Return ONLY valid JSON. No explanation, no markdown.
 """
