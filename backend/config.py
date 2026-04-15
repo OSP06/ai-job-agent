@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     resumes_dir: str = Field(default="backend/resumes", alias="RESUMES_DIR")
 
     # Agent thresholds
-    match_score_threshold: float = Field(default=0.70, alias="MATCH_SCORE_THRESHOLD")
+    match_score_threshold: float = Field(default=0.50, alias="MATCH_SCORE_THRESHOLD")
     followup_day_1: int = Field(default=7, alias="FOLLOWUP_DAY_1")
     followup_day_2: int = Field(default=14, alias="FOLLOWUP_DAY_2")
 
