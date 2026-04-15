@@ -25,6 +25,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
 
@@ -154,6 +155,12 @@ class Resume(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
+    # Add columns introduced after initial deploy — IF NOT EXISTS makes this idempotent
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS missing_skills_json TEXT DEFAULT '[]'"
+        ))
+        conn.commit()
 
 
 # ─── CRUD: Applications ───────────────────────────────────────────────────────
