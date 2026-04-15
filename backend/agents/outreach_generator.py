@@ -91,8 +91,11 @@ Write the cold email."""
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    import json
-    raw = response.content[0].text
+    import json, re
+    raw = response.content[0].text.strip()
+    # Strip optional markdown code fences Claude sometimes adds
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
 
     msg = OutreachMessage(subject=data["subject"], body=data["body"])
@@ -133,7 +136,7 @@ Follow-up number: {followup_number} of 2
 Write the follow-up email.
 After this (follow-up 2), I will stop reaching out and mark the application as no response."""
 
-    import json
+    import json, re
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=512,
@@ -141,7 +144,9 @@ After this (follow-up 2), I will stop reaching out and mark the application as n
         messages=[{"role": "user", "content": user_prompt}],
     )
 
-    raw = response.content[0].text
+    raw = response.content[0].text.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
     data = json.loads(raw)
 
     msg = OutreachMessage(subject=data["subject"], body=data["body"])
