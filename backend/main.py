@@ -108,9 +108,13 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
             detail="No resumes found. Add PDF files to backend/resumes/ and restart.",
         )
 
-    # Step 3 — Confidence gate
+    # Step 3 — Confidence gate + outreach generation
     score = resume_match.score
-    outreach_msg, skip_reason = generate_outreach(job, resume_match)
+    try:
+        outreach_msg, skip_reason = generate_outreach(job, resume_match)
+    except Exception as e:
+        logger.error(f"Outreach generation failed: {e}")
+        outreach_msg, skip_reason = None, f"Outreach generation error: {e}"
 
     # Step 4 — Contact discovery (Hunter.io: LinkedIn name + HR dept + management)
     contacts: list[dict] = []
