@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
+
+  <!-- Subtle inner sheen (top highlight) -->
+  <rect x="4" y="4" width="120" height="60" rx="28" fill="url(#bg2)" opacity="0.5"/>
+  <rect x="4" y="4" width="120" height="60" fill="none"/>
+
+  <!-- Inner border ring for depth -->
+  <rect x="7.5" y="7.5" width="113" height="113" rx="25"
+        fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+
+  <!-- Main 4-pointed sparkle star (smooth bezier, center 64,64) -->
+  <!-- Tips: top(64,20), left(20,64), bottom(64,108), right(108,64) -->
+  <path d="M 64,20 C 64,44 44,64 20,64 C 44,64 64,84 64,108 C 64,84 84,64 108,64 C 84,64 64,44 64,20 Z"
+        fill="white" opacity="0.96"/>
+
+  <!-- Secondary sparkle rotated 45° (smaller, adds the ✦ shimmer) -->
+  <path d="M 64,34 C 64,50 50,64 34,64 C 50,64 64,78 64,94 C 64,78 78,64 94,64 C 78,64 64,50 64,34 Z"
+        fill="white" opacity="0.22" transform="rotate(45, 64, 64)"/>
+
+  <!-- Small accent dots top-right -->
+  <circle cx="97" cy="31" r="4.5" fill="white" opacity="0.48"/>
+  <circle cx="88" cy="26" r="2.8" fill="white" opacity="0.3"/>
+</svg>

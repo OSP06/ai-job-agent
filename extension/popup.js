@@ -44,6 +44,8 @@ const matchedSection    = document.getElementById("matchedSection");
 const missingSection    = document.getElementById("missingSection");
 const matchedPills      = document.getElementById("matchedPills");
 const missingPills      = document.getElementById("missingPills");
+const scoreHero         = document.getElementById("scoreHero");
+const scoreRingEl       = document.getElementById("scoreRing");
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
@@ -135,7 +137,7 @@ function displayPreview(data, tab) {
   const parts = (tab.title || "").split(/[-|–—@·]/);
   jobTitle.textContent   = parts[0]?.trim() || "Job Posting";
   jobCompany.textContent = parts[1]?.trim() || "";
-  jobUrl.textContent     = data.url;
+  try { jobUrl.textContent = new URL(data.url).hostname; } catch { jobUrl.textContent = data.url; }
 }
 
 // ─── Process ──────────────────────────────────────────────────────────────────
@@ -190,6 +192,11 @@ function displayResult(result) {
   // ── Score hero ──
   resScore.textContent = scorePct;
   resScore.className   = "score-number " + scoreClass(score, threshold);
+  scoreHero.className  = "score-hero "   + scoreClass(score, threshold);
+  // Animate ring: reset to empty, then animate to score value
+  const _circ = 2 * Math.PI * 32;
+  scoreRingEl.style.strokeDashoffset = String(_circ);
+  setTimeout(() => { scoreRingEl.style.strokeDashoffset = String(_circ * (1 - score)); }, 80);
   resResume.textContent = result.resume_used || "—";
 
   // Update job card accent colour
@@ -281,7 +288,7 @@ function displayResult(result) {
   contactsContainer.innerHTML   = "";
 
   if (contacts.length) {
-    contacts.slice(0, 3).forEach((c) => {
+    contacts.slice(0, 3).forEach((c, idx) => {
       const initials = getInitials(c.name);
       const hasLink  = !!c.linkedin_url;
       const nameHtml = escHtml(c.name || "Unknown")
@@ -290,7 +297,7 @@ function displayResult(result) {
       const card = document.createElement("div");
       card.className = `contact-card${hasLink ? " has-link" : ""}`;
       card.innerHTML = `
-        <div class="contact-avatar${c.verified ? " verified" : ""}">${escHtml(initials)}</div>
+        <div class="contact-avatar avatar-${idx % 5}${c.verified ? " verified" : ""}">${escHtml(initials)}</div>
         <div class="contact-details">
           <div class="contact-name">${nameHtml}</div>
           ${c.title ? `<div class="contact-role">${escHtml(c.title)}</div>` : ""}
@@ -395,6 +402,8 @@ function resetResult() {
 
   resScore.textContent  = "—";
   resScore.className    = "score-number";
+  scoreHero.className   = "score-hero";
+  scoreRingEl.style.strokeDashoffset = String(2 * Math.PI * 32);
   resResume.textContent = "—";
 
   resOutreach.textContent = "—";
