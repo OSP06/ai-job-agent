@@ -111,10 +111,18 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail=f"duplicate:{existing.id}")
 
     # Step 1 — Parse
-    job = await parse_job(job_input)
+    try:
+        job = await parse_job(job_input)
+    except Exception as e:
+        logger.error(f"Job parsing failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Job parsing failed: {e}")
 
     # Step 2 — Match resume
-    resume_match = match_resume(job, db=db)
+    try:
+        resume_match = match_resume(job, db=db)
+    except Exception as e:
+        logger.error(f"Resume matching failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Resume matching failed: {e}")
     if not resume_match:
         raise HTTPException(
             status_code=422,
