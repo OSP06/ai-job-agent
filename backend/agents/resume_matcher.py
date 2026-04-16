@@ -203,37 +203,22 @@ def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
     job_text = _build_job_query(job)
     job_embedding = encode(job_text)
 
-    # Step 1: pick best resume by raw cosine (embedding is best for selection)
-    best_name: Optional[str] = None
-    best_cosine = -1.0
-    best_text = ""
+    # Step 1: compute cosine + keyword + hybrid for every resume
     cosines: dict[str, float] = {}
+    kw_scores: dict[str, tuple] = {}   # name → (kw_score, matched, missing)
+    all_scores: dict[str, float] = {}
 
     for name, (text, embedding) in _resume_cache.items():
         cosine = cosine_similarity(job_embedding, embedding)
         cosines[name] = cosine
-        if cosine > best_cosine:
-            best_cosine = cosine
-            best_name = name
-            best_text = text
+        kw, matched_i, missing_i = _keyword_score(text, job_text)
+        kw_scores[name] = (kw, matched_i, missing_i)
+        all_scores[name] = _hybrid(cosine, kw)
 
-    if best_name is None:
-        return None
-
-    # Step 2: keyword score for best resume (gives matched/missing lists)
-    kw_score, matched, missing = _keyword_score(best_text, job_text)
-
-    # Step 3: hybrid scores for ALL resumes (for display in extension)
-    all_scores: dict[str, float] = {}
-    for name, cosine in cosines.items():
-        if name == best_name:
-            all_scores[name] = _hybrid(cosine, kw_score)
-        else:
-            # Cheap keyword score for other resumes too
-            other_text = _resume_cache[name][0]
-            other_kw, _, _ = _keyword_score(other_text, job_text)
-            all_scores[name] = _hybrid(cosine, other_kw)
-
+    # Step 2: pick best resume by hybrid score (not raw cosine)
+    best_name = max(all_scores, key=lambda n: all_scores[n])
+    best_cosine = cosines[best_name]
+    kw_score, matched, missing = kw_scores[best_name]
     final_score = all_scores[best_name]
 
     logger.info(
@@ -246,7 +231,7 @@ def match_resume(job: JobData, db=None) -> Optional[ResumeMatch]:
         resume_name=best_name,
         resume_path=f"db:{best_name}",
         score=final_score,
-        resume_text_snippet=best_text[:500],
+        resume_text_snippet=_resume_cache[best_name][0][:500],
         all_scores=all_scores,
         matched_skills=matched[:20],   # cap for response size
         missing_skills=missing[:15],
