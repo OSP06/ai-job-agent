@@ -46,6 +46,7 @@ from backend.storage.database import (
     update_application_status,
     get_db,
 )
+from backend.services.notion_service import sync_to_notion
 from backend.utils.logger import logger
 
 
@@ -182,6 +183,19 @@ async def process_job(job_input: JobInput, db: Session = Depends(get_db)):
         f"Captured: {job.title} @ {job.company} | "
         f"score={score:.0%} | outreach={'yes' if outreach_msg else 'skipped'} | "
         f"contacts={len(contacts)}"
+    )
+
+    # Step 6 — Notion sync (optional, fire-and-forget)
+    await sync_to_notion(
+        job_title=job.title,
+        company=job.company,
+        url=url,
+        status="captured",
+        match_score=score,
+        resume_used=resume_match.resume_name,
+        location=job.location,
+        outreach_subject=outreach_msg.subject if outreach_msg else None,
+        outreach_body=outreach_msg.body       if outreach_msg else None,
     )
 
     return ProcessJobResponse(
