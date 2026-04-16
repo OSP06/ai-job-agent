@@ -37,6 +37,9 @@ const contactsSection   = document.getElementById("contactsSection");
 const contactsContainer = document.getElementById("contactsContainer");
 const backendUrlInput   = document.getElementById("backendUrlInput");
 const saveUrlBtn        = document.getElementById("saveUrlBtn");
+const resumeFile        = document.getElementById("resumeFile");
+const uploadResumeBtn   = document.getElementById("uploadResumeBtn");
+const uploadStatus      = document.getElementById("uploadStatus");
 const skillsDivider     = document.getElementById("skillsDivider");
 const skillsSection     = document.getElementById("skillsSection");
 const matchedSection    = document.getElementById("matchedSection");
@@ -93,6 +96,32 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("appsLink").addEventListener("click", (e) => {
     e.preventDefault();
     chrome.tabs.create({ url: `${backendUrl}/dashboard` });
+  });
+
+  uploadResumeBtn.addEventListener("click", () => resumeFile.click());
+
+  resumeFile.addEventListener("change", async () => {
+    const file = resumeFile.files[0];
+    if (!file) return;
+    uploadResumeBtn.textContent = "Uploading…";
+    uploadResumeBtn.disabled = true;
+    uploadStatus.textContent = "";
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch(`${backendUrl}/api/resumes/upload`, { method: "POST", body: fd });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      uploadStatus.style.color = "var(--green)";
+      uploadStatus.textContent = `✓ ${data.resume_name} uploaded`;
+    } catch (err) {
+      uploadStatus.style.color = "var(--red)";
+      uploadStatus.textContent = `✗ ${err.message}`;
+    } finally {
+      uploadResumeBtn.textContent = "⬆ Upload resume PDF";
+      uploadResumeBtn.disabled = false;
+      resumeFile.value = "";
+    }
   });
 });
 

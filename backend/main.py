@@ -540,10 +540,15 @@ _DASHBOARD_HTML = """<!DOCTYPE html>
     <div class="actions">
       <a class="btn" href="/api/export/csv">&#8595; Export CSV</a>
       <a class="btn" href="/api/resumes/gaps" target="_blank">Skill gaps</a>
-      <a class="btn btn-primary" href="/docs" target="_blank">API docs</a>
+      <label class="btn btn-primary" style="cursor:pointer">
+        &#11014; Upload Resume
+        <input type="file" id="resumeInput" accept=".pdf" style="display:none" onchange="uploadResume(this)"/>
+      </label>
+      <a class="btn" href="/docs" target="_blank">API docs</a>
     </div>
   </div>
 
+  <div id="resumesList" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
   <div class="stats-strip" id="statsStrip"></div>
   <div class="table-card" id="tableCard"><div class="loading">Loading applications…</div></div>
 </div>
@@ -650,7 +655,37 @@ async function load() {
   }
 }
 
+async function loadResumes() {
+  try {
+    const r = await fetch('/api/resumes');
+    const d = await r.json();
+    const el = document.getElementById('resumesList');
+    if (!d.resumes || d.resumes.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = d.resumes.map(name =>
+      `<span style="background:rgba(99,102,241,0.14);color:#818cf8;border:1px solid rgba(99,102,241,0.28);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">&#128196; ${name}</span>`
+    ).join('');
+  } catch {}
+}
+
+async function uploadResume(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/api/resumes/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.statusText);
+    showToast(`✓ ${d.resume_name} uploaded`, false);
+    loadResumes();
+  } catch(e) {
+    showToast(`Upload failed: ${e.message}`, true);
+  }
+  input.value = '';
+}
+
 load();
+loadResumes();
 </script>
 </body>
 </html>"""
