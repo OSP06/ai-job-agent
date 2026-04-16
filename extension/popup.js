@@ -7,6 +7,7 @@ const DEFAULT_BACKEND = "https://ai-job-agent-8zrr.onrender.com";
 // ─── State ────────────────────────────────────────────────────────────────────
 let scrapedData      = null;
 let backendUrl       = DEFAULT_BACKEND;
+let notionUrl        = "";
 let outreachExpanded = false;
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
@@ -37,6 +38,8 @@ const contactsSection   = document.getElementById("contactsSection");
 const contactsContainer = document.getElementById("contactsContainer");
 const backendUrlInput   = document.getElementById("backendUrlInput");
 const saveUrlBtn        = document.getElementById("saveUrlBtn");
+const notionUrlInput    = document.getElementById("notionUrlInput");
+const saveNotionBtn     = document.getElementById("saveNotionBtn");
 const skillsDivider     = document.getElementById("skillsDivider");
 const skillsSection     = document.getElementById("skillsSection");
 const matchedSection    = document.getElementById("matchedSection");
@@ -50,9 +53,11 @@ const scoreRingEl       = document.getElementById("scoreRing");
 document.addEventListener("DOMContentLoaded", () => {
   // Restore last result if the popup was closed by opening a tab (e.g. LinkedIn click)
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-    chrome.storage.local.get(["backendUrl", "lastResult"], (stored) => {
+    chrome.storage.local.get(["backendUrl", "notionUrl", "lastResult"], (stored) => {
       backendUrl = stored.backendUrl || DEFAULT_BACKEND;
       backendUrlInput.value = backendUrl;
+      notionUrl = stored.notionUrl || "";
+      notionUrlInput.value = notionUrl;
 
       if (stored.lastResult && stored.lastResult.url === tab.url) {
         // Restore without re-scanning
@@ -90,9 +95,18 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.create({ url: `${backendUrl}/docs` });
   });
 
+  saveNotionBtn.addEventListener("click", () => {
+    const val = notionUrlInput.value.trim();
+    notionUrl = val;
+    chrome.storage.local.set({ notionUrl: val }, () => {
+      saveNotionBtn.textContent = "Saved ✓";
+      setTimeout(() => { saveNotionBtn.textContent = "Save"; }, 1500);
+    });
+  });
+
   document.getElementById("appsLink").addEventListener("click", (e) => {
     e.preventDefault();
-    chrome.tabs.create({ url: `${backendUrl}/dashboard` });
+    chrome.tabs.create({ url: notionUrl || `${backendUrl}/dashboard` });
   });
 });
 

@@ -126,7 +126,7 @@ def start_scheduler() -> BackgroundScheduler:
     if _scheduler and _scheduler.running:
         return _scheduler
 
-    tz = settings.scheduler_timezone
+    tz = settings.scheduler_timezone.strip()
     _scheduler = BackgroundScheduler(timezone=tz)
 
     _scheduler.add_job(
