@@ -12,10 +12,6 @@ class Settings(BaseSettings):
     # ── Contact discovery ─────────────────────────────────────────────────────
     hunter_api_key: str = Field(default="", alias="HUNTER_API_KEY")
 
-    # ── Notion (optional) ─────────────────────────────────────────────────────
-    notion_token:       str = Field(default="", alias="NOTION_TOKEN")
-    notion_database_id: str = Field(default="", alias="NOTION_DATABASE_ID")
-
     # ── Security ──────────────────────────────────────────────────────────────
     api_key: str = Field(default="", alias="API_KEY")   # if set, all write endpoints require X-Api-Key header
 
