@@ -7,11 +7,6 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.11x-009688)
 ![Chrome](https://img.shields.io/badge/Chrome-Extension-yellow)
 
----
-
-## Demo
-
-> 📹 **[Watch the demo](#)** ← replace this link
 
 ---
 
